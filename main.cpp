@@ -3,7 +3,7 @@
 #include <SFML/Graphics.hpp>
 
 void MenuWindow();
-void GameWindow();
+void GameWindow(std::string name);
 void LeaderboardWindow();
 
 
@@ -14,8 +14,10 @@ int main()
 	return 0;
 }
 
-void GameWindow() {
+void GameWindow(std::string name) {
 	
+	std::cout << "Name: " << name << std::endl;
+
 	std::ifstream file("files/board_config.cfg", std::ios::in);
 	if (!file.is_open())
 		std::cout << "Could not open file!" << std::endl;
@@ -29,18 +31,82 @@ void GameWindow() {
 	// Game window.
 	sf::RenderWindow window(sf::VideoMode(std::stoi(_width) * 32, std::stoi(_height) * 32 + 100), "Minesweeper", sf::Style::Close);
 
-	float width = window.getSize().x;
-	float height = window.getSize().y;
+	float width = std::stoi(_width);
+	float height = std::stoi(_height);
+
+	sf::Texture face;
+	if (!face.loadFromFile("files/images/face_happy.png")) {
+		std::cout << "Could not open file!" << std::endl;
+	}
+	sf::Sprite _face;
+	_face.setTexture(face);
+	_face.setPosition((((width / 2.0f) * 32) - 32), 32 * (height + 0.5f));
+
+	sf::Texture debug;
+	if (!debug.loadFromFile("files/images/debug.png")) {
+		std::cout << "Could not open file!" << std::endl;
+	}
+	sf::Sprite _debug;
+	_debug.setTexture(debug);
+	_debug.setPosition((width * 32) - 304, 32 * (height + 0.5f));
+
+	sf::Texture pause;
+	if (!pause.loadFromFile("files/images/pause.png")) {
+		std::cout << "Could not open file!" << std::endl;
+	}
+	sf::Texture play;
+	if (!play.loadFromFile("files/images/play.png")) {
+		std::cout << "Could not open file!" << std::endl;
+	}
+	sf::Sprite _play;
+	_play.setTexture(pause);
+	_play.setPosition((width * 32) - 240, 32 * (height + 0.5f));
+
+	bool isPaused = false;
+
+	sf::Texture LB;
+	if (!LB.loadFromFile("files/images/leaderboard.png")) {
+		std::cout << "Could not open file!" << std::endl;
+	}
+	sf::Sprite _LB;
+	_LB.setTexture(LB);
+	_LB.setPosition((width * 32) - 176, 32 * (height + 0.5f));
+
+
+	/*sf::Texture digits_txt;
+	if (!digits_txt.loadFromFile("files/images/digits.png")) {
+		std::cout << "Could not open file!" << std::endl;
+	}
+	sf::Sprite digits_spr;
+	digits_spr.setTexture(digits_txt);
+
+	sf::Vector2f digit_loc(33, 32 * (height + 0.5f) + 16);
+	
+	int counter = 0;*/
+	
+
 
 	while (window.isOpen()) {
+		sf::Vector2i mousepos = sf::Mouse::getPosition(window);
 
 		sf::Event event;
 		while (window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed)
 				window.close();
+
+			if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) { 
+				if (mousepos.x >= (width * 32) - 240 && mousepos.x <= (width * 32) - 240 + 64 && mousepos.y >= 32 * (height + 0.5f) && mousepos.y <= 64 + (32 * (height + 0.5f))) { // Checking if pause/play button was pressed.
+					_play.setTexture(play);
+					isPaused = true;
+				}
+			}
 		}
 
-		window.clear(sf::Color::Green);
+		window.clear(sf::Color(128, 128, 128));
+		window.draw(_face);
+		window.draw(_debug);
+		window.draw(_play);
+		window.draw(_LB);
 		window.display();
 	}
 
@@ -112,7 +178,7 @@ void MenuWindow() {
 				if (event.key.code == sf::Keyboard::Return) {
 					std::string user = input.getString();
 					window.close();
-					GameWindow();
+					GameWindow(user);
 				}
 			}
 
