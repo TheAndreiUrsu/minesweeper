@@ -1,10 +1,12 @@
 #include <iostream>
 #include <fstream>
 #include <SFML/Graphics.hpp>
+#include <chrono>
+#include <vector>
 
 void MenuWindow();
 void GameWindow(std::string name);
-void LeaderboardWindow();
+void LeaderboardWindow(int width, int height);
 
 
 int main()
@@ -73,16 +75,13 @@ void GameWindow(std::string name) {
 	_LB.setPosition((width * 32) - 176, 32 * (height + 0.5f));
 
 
-	/*sf::Texture digits_txt;
+	sf::Texture digits_txt;
 	if (!digits_txt.loadFromFile("files/images/digits.png")) {
 		std::cout << "Could not open file!" << std::endl;
 	}
 	sf::Sprite digits_spr;
 	digits_spr.setTexture(digits_txt);
-
-	sf::Vector2f digit_loc(33, 32 * (height + 0.5f) + 16);
-	
-	int counter = 0;*/
+	digits_spr.setPosition(33, 32 * (height + 0.5f) + 16);
 	
 	sf::Texture hidden_tile;
 	if (!hidden_tile.loadFromFile("files/images/tile_hidden.png")) {
@@ -96,11 +95,15 @@ void GameWindow(std::string name) {
 	sf::Sprite tile;
 	tile.setTexture(hidden_tile);
 
-	int tile_cnt = width * height;
+	// Timer
+	sf::Sprite minutes;
+	minutes.setTexture(digits_txt);
+	sf::Sprite seconds;
+	seconds.setTexture(digits_txt);
 
-	
+	auto start = std::chrono::high_resolution_clock::now();
 
-	
+	int minute, second;
 
 	while (window.isOpen()) {
 		sf::Vector2i mousepos = sf::Mouse::getPosition(window);
@@ -111,9 +114,20 @@ void GameWindow(std::string name) {
 				window.close();
 
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) { 
-				if (mousepos.x >= (width * 32) - 240 && mousepos.x <= (width * 32) - 240 + 64 && mousepos.y >= 32 * (height + 0.5f) && mousepos.y <= 64 + (32 * (height + 0.5f))) { // Checking if pause/play button was pressed.
-					_play.setTexture(play);
-					isPaused = true;
+				if (mousepos.x >= _play.getPosition().x && mousepos.x <= _play.getPosition().x + 64 && mousepos.y >= _play.getPosition().y && mousepos.y <= 64 + _play.getPosition().y) { // Checking if pause/play button was pressed.
+					if (!isPaused) {
+						_play.setTexture(play);
+						isPaused = true;
+					}
+					else {
+						_play.setTexture(pause);
+						start = std::chrono::high_resolution_clock::now();
+						isPaused = false;
+					}
+				}
+
+				if (mousepos.x >= _LB.getPosition().x && mousepos.x <= _LB.getPosition().x + 64 && mousepos.y >= _LB.getPosition().y && mousepos.y <= 64 + _LB.getPosition().y) { // Checking if leaderboard button was pressed.
+					LeaderboardWindow(width * 16, (height * 16) + 50);
 				}
 			}
 		}
@@ -123,10 +137,35 @@ void GameWindow(std::string name) {
 		window.draw(_debug);
 		window.draw(_play);
 		window.draw(_LB);
+		window.draw(digits_spr);
+
+		if (!isPaused) {
+			minute = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::high_resolution_clock::now() - start).count();
+			second = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count();
+		}
+		
+		// Drawing timer.
+		minutes.setTextureRect(sf::IntRect(((minute % 99) / 10) % 10 * 21, 0, 21, 32));
+		minutes.setPosition((width * 32) - 97, 32 * (height + 0.5f) + 16);
+		window.draw(minutes);
+		minutes.setTextureRect(sf::IntRect((minute % 99) % 10 * 21, 0, 21, 32));
+		minutes.setPosition((width * 32) - 97 + 21, 32 * (height + 0.5f) + 16);
+		window.draw(minutes);
+
+		seconds.setTextureRect(sf::IntRect(((second % 60) / 10) % 10 * 21, 0, 21, 32));
+		seconds.setPosition((width * 32) - 54, 32 * (height + 0.5f) + 16);
+		window.draw(seconds);
+		seconds.setTextureRect(sf::IntRect((second % 60) % 10 * 21, 0, 21, 32));
+		seconds.setPosition((width * 32) - 54 + 21, 32 * (height + 0.5f) + 16);
+		window.draw(seconds);
+		
+		
+
+		std::cout << "Time: " << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count() << std::endl;
 
 		// Drawing tiles.
-		for (int i = 0; i < width; ++i) {
-			for (int j = 0; j < height; ++j) {
+		for (int i = 0; i < width; ++i) { // Rows
+			for (int j = 0; j < height; ++j) { // Columns
 				tile.setPosition(i * 32, j * 32);
 				window.draw(tile);
 			}
@@ -135,6 +174,76 @@ void GameWindow(std::string name) {
 		window.display();
 	}
 
+}
+
+struct Score {
+	std::string name;
+	std::string time;
+};
+
+void LeaderboardWindow(int width, int height) {
+	sf::RenderWindow window(sf::VideoMode(width, height), "Minesweeper", sf::Style::Close);
+
+	float _width = window.getSize().x;
+	float _height = window.getSize().y;
+
+	sf::Font font;
+	if (!font.loadFromFile("files/font.ttf")) {
+		std::cout << "Error loading font!" << std::endl;
+	}
+
+	sf::Text Title("LEADERBOARD", font, 20);
+	Title.setStyle(sf::Text::Bold | sf::Text::Underlined);
+	Title.setFillColor(sf::Color::White);
+	Title.setPosition(_width / 2.0f, height / 2.0f - 120);
+
+	sf::FloatRect title_bounds = Title.getLocalBounds();
+	Title.setOrigin(title_bounds.left + title_bounds.width / 2.0f, title_bounds.top + title_bounds.height / 2.0f);
+
+	std::ifstream file("files/leaderboard.txt", std::ios::in);
+	if (!file.is_open())
+		std::cout << "Could not open file!" << std::endl;
+
+	std::string time, name;
+	std::vector<Score> scores;
+
+
+	while (getline(file, time, ',')) {
+		getline(file, name, '\n');
+
+		Score _new = { name,time };
+		scores.push_back(_new);
+	}
+
+	sf::Text score("", font, 18);
+	score.setStyle(sf::Text::Bold);
+	score.setFillColor(sf::Color::White);
+
+	while (window.isOpen()) {
+
+		sf::Event event;
+		while (window.pollEvent(event)) {
+			
+			
+			
+			if (event.type == sf::Event::Closed)
+				window.close();
+		}
+
+		window.clear(sf::Color::Blue);
+
+		for (int i = 0; i < scores.size(); ++i) {
+			score.setString(std::to_string(i + 1) + "." + '\t' + scores[i].time + '\t' + scores[i].name + '\n');
+			score.setPosition(width / 2.0f, height / 2.0f + 120);
+			score.setOrigin(score.getLocalBounds().left + score.getLocalBounds().width / 2.0f, score.getLocalBounds().top + score.getLocalBounds().height / 2.0f);
+			window.draw(score);
+		}
+
+
+
+		window.draw(Title);
+		window.display();
+	}
 }
 
 void MenuWindow() {
