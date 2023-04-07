@@ -84,7 +84,23 @@ void GameWindow(std::string name) {
 	
 	int counter = 0;*/
 	
+	sf::Texture hidden_tile;
+	if (!hidden_tile.loadFromFile("files/images/tile_hidden.png")) {
+		std::cout << "Could not open file!" << std::endl;
+	}
+	sf::Texture revealed_tile;
+	if (!revealed_tile.loadFromFile("files/images/tile_revealed.png")) {
+		std::cout << "Could not open file!" << std::endl;
+	}
 
+	sf::Sprite tile;
+	tile.setTexture(hidden_tile);
+
+	int tile_cnt = width * height;
+
+	
+
+	
 
 	while (window.isOpen()) {
 		sf::Vector2i mousepos = sf::Mouse::getPosition(window);
@@ -102,11 +118,20 @@ void GameWindow(std::string name) {
 			}
 		}
 
-		window.clear(sf::Color(128, 128, 128));
+		window.clear(sf::Color::White);
 		window.draw(_face);
 		window.draw(_debug);
 		window.draw(_play);
 		window.draw(_LB);
+
+		// Drawing tiles.
+		for (int i = 0; i < width; ++i) {
+			for (int j = 0; j < height; ++j) {
+				tile.setPosition(i * 32, j * 32);
+				window.draw(tile);
+			}
+		}
+
 		window.display();
 	}
 
