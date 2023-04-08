@@ -11,30 +11,27 @@ private:
 	bool isFlagged;
 	bool isVisible;
 	sf::Sprite _tile;
-	sf::Sprite mine;
+	sf::Texture hidden;
+	sf::Texture visible;
+	sf::Texture flag;
+	sf::Texture mine;
+
+	sf::Sprite _mine;
 	Tile* neighbors[8];
 
 public:
-	Tile(sf::Texture texture) {
-		this->hasMine = false;
-		this->isFlagged = false;
-		this->isVisible = false;
-		this->_tile.setTexture(texture);
-	}
-
 	Tile() {
 		this->hasMine = false;
 		this->isFlagged = false;
 		this->isVisible = false;
+		this->hidden.loadFromFile("files/images/tile_hidden.png");
+		this->visible.loadFromFile("files/images/tile_revealed.png");
+		this->mine.loadFromFile("files/images/mine.png");
+		this->neighbors;
 	}
 
 	void setMine(bool val) {
 		this->hasMine = val;
-	}
-	void changeTile(sf::Texture texture) {
-		if (this->hasMine) {
-			this->mine.setTexture(texture);
-		}
 	}
 
 	void setVisible(bool val) {
@@ -55,8 +52,24 @@ public:
 		return this->isVisible;
 	}
 
-	sf::Sprite getTile() {
+	sf::Sprite& getTile() {
 		return this->_tile;
+	}
+	sf::Sprite& getMineSprite(){
+		return this->_mine;
+	}
+
+	void setPos(float x, float y) {
+		this->_tile.setPosition(x, y);
+		
+		if(this->hasMine)
+			this->_mine.setPosition(x, y);
+	}
+	void setMat() {
+		this->_tile.setTexture(this->hidden);
+
+		if (this->hasMine)
+			this->_mine.setTexture(this->mine);
 	}
 };
 
@@ -90,15 +103,14 @@ public:
 		std::shuffle(indices.begin(), indices.end(), std::mt19937(std::random_device()()));
 
 		// Create an empty board.
-		for (int i = 0; i < this->Tiles.size(); ++i) {
-			Tile tile(this->visible);
-			tile.setVisible(true);
+		for (auto i = 0; i < this->Tiles.size(); ++i) {
+			Tile tile;
 			this->Tiles.at(i) = tile;
 		}
 
 		int total_mines = 0; // Place mines until reaching number of mines.
 		// Randomly assign mines.
-		for (int i = 0; i < this->Tiles.size(); ++i) {
+		for (auto i = 0; i < this->Tiles.size(); ++i) {
 			if (this->numMines == total_mines) // Total mines has been reached.
 				break;
 
@@ -114,43 +126,28 @@ public:
 		std::cout << "Generated a complete minesweeper board!" << std::endl;
 	}
 
-	void PrintBoard(int n, int m) {
-		for (int i = 0; i < m; ++i) {
-			for (int j = 0; j < n; ++j) {
-				std::cout << "+---";
-			}
-			std::cout << "+" << std::endl;
-
-			for (int j = 0; j < n; ++j) {
-				std::cout << "| ";
-				int index = i * n + j;
-				if (this->Tiles[index].getMine()) {
-					std::cout << "M";
-				}
-				else {
-					std::cout << ".";
-				}
-				std::cout << " ";
-			}
-			std::cout << "|" << std::endl;
+	bool validateTiles() {
+		for (auto& i : this->Tiles) {
+			if (i.getTile().getTexture() == nullptr)
+				return false;
 		}
-
-		for (int j = 0; j < n; ++j) {
-			std::cout << "+---";
-		}
-		std::cout << "+" << std::endl;
+		return true;
 	}
 
-	void Draw(sf::RenderWindow& win) {
-		this->Tiles[0].getTile().setPosition(0, 0);
-		win.draw(this->Tiles[0].getTile());
-
-		/*for (int i = 0; i < this->width; ++i) {
+	void Draw(sf::RenderWindow& win, int choice) {
+		int k = 0;
+		for (int i = 0; i < this->width; ++i) {
 			for (int j = 0; j < this->height; ++j) {
-				this->Tiles[i].getTile().setPosition(i * 32, j * 32);
-				win.draw(this->Tiles[i].getTile());
+				this->Tiles[k].setPos(i * 32, j * 32);
+				this->Tiles[k].setMat();
+				win.draw(this->Tiles[k].getTile());
+
+				if (choice == 1)
+					win.draw(this->Tiles[k].getMineSprite());
+
+				++k;
 			}
-		}*/
+		}
 	}
 
 	int getWidth() const {
@@ -159,7 +156,7 @@ public:
 	int getHeight() const {
 		return this->height;
 	}
-	std::vector<Tile> getTiles(){
+	std::vector<Tile>& getTiles(){
 		return this->Tiles;
 	}
 };
