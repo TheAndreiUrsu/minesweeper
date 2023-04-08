@@ -15,7 +15,7 @@ int main()
 }
 
 void GameWindow(std::string name) {
-	
+
 	std::cout << "Name: " << name << std::endl;
 
 	std::ifstream file("files/board_config.cfg", std::ios::in);
@@ -43,6 +43,11 @@ void GameWindow(std::string name) {
 	if (!face.loadFromFile("files/images/face_happy.png")) {
 		std::cout << "Could not open file!" << std::endl;
 	}
+	sf::Texture sad;
+	if (!sad.loadFromFile("files/images/face_lose.png")) {
+		std::cout << "Could not open file!" << std::endl;
+	}
+
 	sf::Sprite _face;
 	_face.setTexture(face);
 	_face.setPosition((((width / 2.0f) * 32) - 32), 32 * (height + 0.5f));
@@ -106,8 +111,6 @@ void GameWindow(std::string name) {
 
 	int minute, second;
 	int choice = 0;
-
-	std::cout << (Minesweeper.validateTiles()) << std::endl;
 
 	while (window.isOpen()) {
 		sf::Vector2i mousepos = sf::Mouse::getPosition(window);
@@ -190,26 +193,44 @@ void GameWindow(std::string name) {
 						
 				}
 
-				/*for (int i = 0; i < width; ++i) {
+				// Checking which tile was clicked.
+				int k = 0;
+				for (int i = 0; i < width; ++i) {
 					for (int j = 0; j < height; ++j) {
 						if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
-							std::cout << "Clicked tile!" << std::endl;
-							tile.setTexture(revealed_tile);
+							if (Minesweeper.getTiles()[k].getMine()) { // Lost.
+								std::cout << "You died!" << std::endl;
+								_face.setTexture(sad);
+							}
+							else {
+								std::cout << "You're safe!" << std::endl;
+							}
+							
 						}
+						++k;
 					}
-				}*/
+				}
 			}
 
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
-				/*for (int i = 0; i < width; ++i) {
+				int k = 0;
+				for (int i = 0; i < width; ++i) {
 					for (int j = 0; j < height; ++j) {
 						if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
-							std::cout << "Placed flag!" << std::endl;
-							_flag.setPosition(i * 32, j * 32);
-							window.draw(_flag);
+							if (!Minesweeper.getTiles()[k].getFlag())
+							{
+								Minesweeper.getTiles()[k].setFlagged(true);
+								std::cout << "Flag placed!" << std::endl;
+								choice = 2;
+							}
+							else {
+								Minesweeper.getTiles()[k].setFlagged(false);
+								std::cout << "Flag removed!" << std::endl;
+							}
 						}
+						++k;
 					}
-				}*/
+				}
 			}
 		}
 		window.display();
