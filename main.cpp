@@ -1,8 +1,6 @@
-#include <iostream>
 #include <fstream>
-#include <SFML/Graphics.hpp>
+#include "board.hpp"
 #include <chrono>
-#include <vector>
 
 void MenuWindow();
 void GameWindow(std::string name);
@@ -36,6 +34,11 @@ void GameWindow(std::string name) {
 	float width = std::stoi(_width);
 	float height = std::stoi(_height);
 
+	// <<<<<< GENERATING A BOARD >>>>>>> //
+
+	Board Minesweeper(width, height, std::stoi(mine_cnt));
+	Minesweeper.GenerateBoard();
+
 	sf::Texture face;
 	if (!face.loadFromFile("files/images/face_happy.png")) {
 		std::cout << "Could not open file!" << std::endl;
@@ -51,6 +54,8 @@ void GameWindow(std::string name) {
 	sf::Sprite _debug;
 	_debug.setTexture(debug);
 	_debug.setPosition((width * 32) - 304, 32 * (height + 0.5f));
+
+	bool isDebug = false;
 
 	sf::Texture pause;
 	if (!pause.loadFromFile("files/images/pause.png")) {
@@ -83,17 +88,13 @@ void GameWindow(std::string name) {
 	digits_spr.setTexture(digits_txt);
 	digits_spr.setPosition(33, 32 * (height + 0.5f) + 16);
 	
-	sf::Texture hidden_tile;
-	if (!hidden_tile.loadFromFile("files/images/tile_hidden.png")) {
-		std::cout << "Could not open file!" << std::endl;
-	}
-	sf::Texture revealed_tile;
-	if (!revealed_tile.loadFromFile("files/images/tile_revealed.png")) {
+	sf::Texture flag;
+	if (!flag.loadFromFile("files/images/flag.png")) {
 		std::cout << "Could not open file!" << std::endl;
 	}
 
-	sf::Sprite tile;
-	tile.setTexture(hidden_tile);
+	sf::Sprite _flag;
+	_flag.setTexture(flag);
 
 	// Timer
 	sf::Sprite minutes;
@@ -104,33 +105,12 @@ void GameWindow(std::string name) {
 	auto start = std::chrono::high_resolution_clock::now();
 
 	int minute, second;
+	int choice = 0;
+
+	std::cout << (Minesweeper.validateTiles()) << std::endl;
 
 	while (window.isOpen()) {
 		sf::Vector2i mousepos = sf::Mouse::getPosition(window);
-
-		sf::Event event;
-		while (window.pollEvent(event)) {
-			if (event.type == sf::Event::Closed)
-				window.close();
-
-			if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) { 
-				if (mousepos.x >= _play.getPosition().x && mousepos.x <= _play.getPosition().x + 64 && mousepos.y >= _play.getPosition().y && mousepos.y <= 64 + _play.getPosition().y) { // Checking if pause/play button was pressed.
-					if (!isPaused) {
-						_play.setTexture(play);
-						isPaused = true;
-					}
-					else {
-						_play.setTexture(pause);
-						start = std::chrono::high_resolution_clock::now();
-						isPaused = false;
-					}
-				}
-
-				if (mousepos.x >= _LB.getPosition().x && mousepos.x <= _LB.getPosition().x + 64 && mousepos.y >= _LB.getPosition().y && mousepos.y <= 64 + _LB.getPosition().y) { // Checking if leaderboard button was pressed.
-					LeaderboardWindow(width * 16, (height * 16) + 50);
-				}
-			}
-		}
 
 		window.clear(sf::Color::White);
 		window.draw(_face);
@@ -143,7 +123,7 @@ void GameWindow(std::string name) {
 			minute = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::high_resolution_clock::now() - start).count();
 			second = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count();
 		}
-		
+
 		// Drawing timer.
 		minutes.setTextureRect(sf::IntRect(((minute % 99) / 10) % 10 * 21, 0, 21, 32));
 		minutes.setPosition((width * 32) - 97, 32 * (height + 0.5f) + 16);
@@ -158,20 +138,82 @@ void GameWindow(std::string name) {
 		seconds.setTextureRect(sf::IntRect((second % 60) % 10 * 21, 0, 21, 32));
 		seconds.setPosition((width * 32) - 54 + 21, 32 * (height + 0.5f) + 16);
 		window.draw(seconds);
-		
-		
 
-		std::cout << "Time: " << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count() << std::endl;
+		//std::cout << "Time: " << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count() << std::endl;
+
+		Minesweeper.Draw(window, choice);
 
 		// Drawing tiles.
-		for (int i = 0; i < width; ++i) { // Rows
-			for (int j = 0; j < height; ++j) { // Columns
-				tile.setPosition(i * 32, j * 32);
-				window.draw(tile);
+		//for (int i = 0; i < width; ++i) { // Rows
+		//	for (int j = 0; j < height; ++j) { // Columns
+		//		_tile.setPosition(i * 32, j * 32);
+		//		window.draw(_tile);
+		//	}
+		//}
+
+		sf::Event event;
+		while (window.pollEvent(event)) {
+			if (event.type == sf::Event::Closed)
+				window.close();
+
+			if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) { 
+				if (mousepos.x >= _play.getPosition().x && mousepos.x <= _play.getPosition().x + 64 && mousepos.y >= _play.getPosition().y && mousepos.y <= 64 + _play.getPosition().y) { // Checking if pause/play button was pressed.
+					if (!isPaused) {
+						_play.setTexture(play);
+						isPaused = true;
+					}
+					else {
+						_play.setTexture(pause);
+						start = start;
+						isPaused = false;
+					}
+				}
+
+				if (mousepos.x >= _LB.getPosition().x && mousepos.x <= _LB.getPosition().x + 64 && mousepos.y >= _LB.getPosition().y && mousepos.y <= 64 + _LB.getPosition().y) { // Checking if leaderboard button was pressed.
+					LeaderboardWindow(width * 16, (height * 16) + 50);
+				}
+
+				if (mousepos.x >= _face.getPosition().x && mousepos.x <= _face.getPosition().x + 64 && mousepos.y >= _face.getPosition().y && mousepos.y <= _face.getPosition().y + 64) {
+					Minesweeper.GenerateBoard();
+					start = std::chrono::high_resolution_clock::now();
+				}
+
+				if (mousepos.x >= _debug.getPosition().x && mousepos.x <= _debug.getPosition().x + 64 && mousepos.y >= _debug.getPosition().y && mousepos.y <= _debug.getPosition().y + 64) {
+					if (!isDebug) {
+						choice = 1;
+						isDebug = true;
+					}
+					else {
+						choice = 0;
+						isDebug = false;
+					}
+						
+				}
+
+				/*for (int i = 0; i < width; ++i) {
+					for (int j = 0; j < height; ++j) {
+						if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
+							std::cout << "Clicked tile!" << std::endl;
+							tile.setTexture(revealed_tile);
+						}
+					}
+				}*/
+			}
+
+			if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
+				/*for (int i = 0; i < width; ++i) {
+					for (int j = 0; j < height; ++j) {
+						if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
+							std::cout << "Placed flag!" << std::endl;
+							_flag.setPosition(i * 32, j * 32);
+							window.draw(_flag);
+						}
+					}
+				}*/
 			}
 		}
-
 		window.display();
+		
 	}
 
 }
@@ -184,8 +226,8 @@ struct Score {
 void LeaderboardWindow(int width, int height) {
 	sf::RenderWindow window(sf::VideoMode(width, height), "Minesweeper", sf::Style::Close);
 
-	float _width = window.getSize().x;
-	float _height = window.getSize().y;
+	auto _width = window.getSize().x;
+	auto _height = window.getSize().y;
 
 	sf::Font font;
 	if (!font.loadFromFile("files/font.ttf")) {
@@ -207,7 +249,6 @@ void LeaderboardWindow(int width, int height) {
 	std::string time, name;
 	std::vector<Score> scores;
 
-
 	while (getline(file, time, ',')) {
 		getline(file, name, '\n');
 
@@ -223,23 +264,17 @@ void LeaderboardWindow(int width, int height) {
 
 		sf::Event event;
 		while (window.pollEvent(event)) {
-			
-			
-			
 			if (event.type == sf::Event::Closed)
 				window.close();
 		}
 
 		window.clear(sf::Color::Blue);
-
-		for (int i = 0; i < scores.size(); ++i) {
+		score.setOrigin(score.getLocalBounds().left + score.getLocalBounds().width / 2.0f, score.getLocalBounds().top + score.getLocalBounds().height / 2.0f);
+		for (int i = 0; i < 5; ++i) { // Display only top 5.
 			score.setString(std::to_string(i + 1) + "." + '\t' + scores[i].time + '\t' + scores[i].name + '\n');
-			score.setPosition(width / 2.0f, height / 2.0f + 120);
-			score.setOrigin(score.getLocalBounds().left + score.getLocalBounds().width / 2.0f, score.getLocalBounds().top + score.getLocalBounds().height / 2.0f);
+			score.setPosition(width / 2.0f, height / 2.0f - 60 + i * 30);
 			window.draw(score);
 		}
-
-
 
 		window.draw(Title);
 		window.display();
@@ -249,8 +284,8 @@ void LeaderboardWindow(int width, int height) {
 void MenuWindow() {
 	sf::RenderWindow window(sf::VideoMode(800, 600), "Minesweeper", sf::Style::Close);
 
-	float width = window.getSize().x;
-	float height = window.getSize().y;
+	auto width = window.getSize().x;
+	auto height = window.getSize().y;
 
 	sf::Font font;
 	if (!font.loadFromFile("files/font.ttf")) {
