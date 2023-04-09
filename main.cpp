@@ -106,8 +106,24 @@ void GameWindow(std::string name) {
 	minutes.setTexture(digits_txt);
 	sf::Sprite seconds;
 	seconds.setTexture(digits_txt);
+	
+	// Flag counter.
+	sf::Sprite digit1_mines;
+	sf::Sprite digit2_mines;
+	sf::Sprite digit3_mines;
+	sf::Sprite negative;
+	digit1_mines.setTexture(digits_txt);
+	digit2_mines.setTexture(digits_txt);
+	digit3_mines.setTexture(digits_txt);
+	negative.setTexture(digits_txt);
+
+	sf::RectangleShape rect(sf::Vector2f(21, 32)); // Eraser.
+	rect.setFillColor(sf::Color::White);
+	rect.setPosition(12, 32 * (height + 0.5f) + 16);
 
 	auto start = std::chrono::high_resolution_clock::now();
+
+	int mines = std::stoi(mine_cnt);
 
 	int minute, second;
 	int choice = 0;
@@ -120,7 +136,6 @@ void GameWindow(std::string name) {
 		window.draw(_debug);
 		window.draw(_play);
 		window.draw(_LB);
-		window.draw(digits_spr);
 
 		if (!isPaused) {
 			minute = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::high_resolution_clock::now() - start).count();
@@ -141,6 +156,25 @@ void GameWindow(std::string name) {
 		seconds.setTextureRect(sf::IntRect((second % 60) % 10 * 21, 0, 21, 32));
 		seconds.setPosition((width * 32) - 54 + 21, 32 * (height + 0.5f) + 16);
 		window.draw(seconds);
+
+		digit1_mines.setTextureRect(sf::IntRect((abs(mines) / 100) % 10 * 21, 0, 21, 32));
+		digit1_mines.setPosition(33, 32 * (height + 0.5f) + 16);
+		window.draw(digit1_mines);
+		digit2_mines.setTextureRect(sf::IntRect((abs(mines) / 10) % 10 * 21, 0, 21, 32));
+		digit2_mines.setPosition(33 + 21, 32 * (height + 0.5f) + 16);
+		window.draw(digit2_mines);
+		digit3_mines.setTextureRect(sf::IntRect((abs(mines) % 10) * 21, 0, 21, 32));
+		digit3_mines.setPosition(33 + 21 * 2, 32 * (height + 0.5f) + 16);
+		window.draw(digit3_mines);
+
+		if (mines < 0) {
+			negative.setTextureRect(sf::IntRect(10 * 21, 0, 21, 32));
+			negative.setPosition(12, 32 * (height + 0.5f) + 16);
+			window.draw(negative);
+		}
+		else {
+			window.draw(rect);
+		}
 
 		//std::cout << "Time: " << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count() << std::endl;
 
@@ -179,6 +213,7 @@ void GameWindow(std::string name) {
 				if (mousepos.x >= _face.getPosition().x && mousepos.x <= _face.getPosition().x + 64 && mousepos.y >= _face.getPosition().y && mousepos.y <= _face.getPosition().y + 64) {
 					Minesweeper.GenerateBoard();
 					start = std::chrono::high_resolution_clock::now();
+					mines = std::stoi(mine_cnt);
 				}
 
 				if (mousepos.x >= _debug.getPosition().x && mousepos.x <= _debug.getPosition().x + 64 && mousepos.y >= _debug.getPosition().y && mousepos.y <= _debug.getPosition().y + 64) {
@@ -221,11 +256,13 @@ void GameWindow(std::string name) {
 							{
 								Minesweeper.getTiles()[k].setFlagged(true);
 								std::cout << "Flag placed!" << std::endl;
+								mines--;
 								choice = 2;
 							}
 							else {
 								Minesweeper.getTiles()[k].setFlagged(false);
 								std::cout << "Flag removed!" << std::endl;
+								mines++;
 							}
 						}
 						++k;
