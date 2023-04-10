@@ -230,6 +230,7 @@ void GameWindow(std::string name) {
 								_face.setTexture(sad);
 							}
 							else {
+								choice = 4;
 								std::cout << "You're safe!" << std::endl;
 							}
 							

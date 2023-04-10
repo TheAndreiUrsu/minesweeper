@@ -35,7 +35,6 @@ public:
 		this->visible.loadFromFile("files/images/tile_revealed.png");
 		this->mine.loadFromFile("files/images/mine.png");
 		this->flag.loadFromFile("files/images/flag.png");
-		this->neighbors;
 	}
 
 	void setMine(bool val) {
@@ -68,6 +67,10 @@ public:
 		return this->isVisible;
 	}
 
+	Tile** getNeighbor() {
+		return this->neighbors;
+	}
+
 	sf::Sprite& getTile() {
 		return this->_tile;
 	}
@@ -93,7 +96,7 @@ public:
 		if (!this->isVisible)
 			this->_tile.setTexture(this->hidden);
 		else if (this->isVisible)
-			this->_tile.setTexture(this->hidden);
+			this->_tile.setTexture(this->visible);
 
 		if (this->hasMine)
 			this->_mine.setTexture(this->mine);
@@ -435,6 +438,35 @@ public:
 		std::cout << "Generated a complete minesweeper board!" << std::endl;
 	}
 
+	void countNeighboringMines() {
+
+		// Count from 0,0
+		int mine_cnt = 0;
+		for (int k = 0; k < 8; ++k) {
+			if (this->Tiles[0][0].getNeighbor()[k]->getMine() && this->Tiles[0][0].getNeighbor()[k] != nullptr) {
+				mine_cnt++;
+				std::cout << "Mine: " << mine_cnt << std::endl;
+			}
+		}
+		
+		this->Tiles[0][0].setNum(1);
+
+		/*for (int i = 0; i < this->width; ++i) {
+			for (int j = 0; j < this->height; ++j) {
+				Tile** neighbors = this->Tiles[i][j].getNeighbor();
+				int mine_cnt = 0;
+				for (int k = 0; k < 4; ++k) {
+					Tile* neighbor = neighbors[k];
+					if (neighbor != nullptr && neighbor->getMine()) {
+						mine_cnt++;
+					}
+				}
+				if(!this->Tiles[i][j].getMine())
+					this->Tiles[i][j].setNum(mine_cnt);
+			}
+		}*/
+	}
+
 	void Draw(sf::RenderWindow& win, int choice) {
 
 		for (int i = 0; i < this->width; ++i) {
@@ -444,7 +476,6 @@ public:
 				win.draw(this->Tiles[i][j].getTile());
 
 				this->Tiles[i][j].getAdjacent().setPosition(i * 32, j * 32);
-				win.draw(this->Tiles[i][j].getAdjacent());
 
 				if (choice == 1 && this->Tiles[i][j].getVisible())
 					win.draw(this->Tiles[i][j].getMineSprite());
@@ -452,8 +483,39 @@ public:
 				else if (choice == 2)
 					win.draw(this->Tiles[i][j].getFlagSprite());
 
-				else if (choice == 3)
+				else if (choice == 3) {
 					win.draw(this->Tiles[i][j].getMineSprite());
+					
+					// Count from 0,0
+					int mine_cnt = 0;
+					for (int k = 0; k < 6; ++k) {
+						if (this->Tiles[i][j].getNeighbor()[k] != nullptr) {
+							Tile neighbor = *this->Tiles[i][j].getNeighbor()[k];
+							if (neighbor.getMine()) {
+								mine_cnt++;
+								std::cout << "Mine: " << mine_cnt << std::endl;
+							}
+							
+						}
+					}
+					if (mine_cnt > 0 && !this->Tiles[i][j].getMine()) {
+						this->Tiles[i][j].setNum(mine_cnt);
+						win.draw(this->Tiles[i][j].getAdjacent());
+					}
+					
+
+				}
+					
+
+				else if (choice == 4 && this->Tiles[i][j].getVisible()) { // Check neighboring tiles for bombs and display the number of bombs depending if the tile clicked does not have a bomb.
+					for (auto k = 0; k < 8; ++k) { // Max 8 neighbors.
+						if (this->Tiles[i][j].getNeighbor()[k] != nullptr) {
+							this->Tiles[i][j].getNeighbor()[k]->setNum(2);
+							this->Tiles[i][j].getNeighbor()[k]->setMat();
+							win.draw(this->Tiles[i][j].getNeighbor()[k]->getAdjacent());
+						}
+					}
+				} 
 
 			}
 		}
