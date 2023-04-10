@@ -39,6 +39,7 @@ void GameWindow(std::string name) {
 	Board Minesweeper(width, height, std::stoi(mine_cnt));
 	std::cout << "Total mines: " << mine_cnt << std::endl;
 	Minesweeper.GenerateBoard();
+	Minesweeper.countNeighboringMines();
 
 	sf::Texture face;
 	if (!face.loadFromFile("files/images/face_happy.png")) {
@@ -46,6 +47,10 @@ void GameWindow(std::string name) {
 	}
 	sf::Texture sad;
 	if (!sad.loadFromFile("files/images/face_lose.png")) {
+		std::cout << "Could not open file!" << std::endl;
+	}
+	sf::Texture happy;
+	if (!happy.loadFromFile("files/images/face_win.png")) {
 		std::cout << "Could not open file!" << std::endl;
 	}
 
@@ -76,6 +81,7 @@ void GameWindow(std::string name) {
 	_play.setPosition((width * 32) - 240, 32 * (height + 0.5f));
 
 	bool isPaused = false;
+	bool gameOver = false;
 
 	sf::Texture LB;
 	if (!LB.loadFromFile("files/images/leaderboard.png")) {
@@ -129,6 +135,10 @@ void GameWindow(std::string name) {
 	int choice = 0;
 
 	while (window.isOpen()) {
+		if (Minesweeper.checkBoard()) {
+			_face.setTexture(happy);
+			gameOver = true;
+		}
 		sf::Vector2i mousepos = sf::Mouse::getPosition(window);
 
 		window.clear(sf::Color::White);
@@ -178,6 +188,8 @@ void GameWindow(std::string name) {
 
 		Minesweeper.Draw(window, choice);
 
+		
+
 		sf::Event event;
 		while (window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed)
@@ -202,6 +214,7 @@ void GameWindow(std::string name) {
 
 				if (mousepos.x >= _face.getPosition().x && mousepos.x <= _face.getPosition().x + 64 && mousepos.y >= _face.getPosition().y && mousepos.y <= _face.getPosition().y + 64) {
 					Minesweeper.GenerateBoard();
+					Minesweeper.countNeighboringMines();
 					start = std::chrono::high_resolution_clock::now();
 					mines = std::stoi(mine_cnt);
 					_face.setTexture(face);
