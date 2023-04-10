@@ -19,6 +19,10 @@ private:
 	sf::Texture visible;
 	sf::Texture flag;
 	sf::Texture mine;
+
+	sf::Texture num;
+
+	sf::Sprite num_neighbor;
 	
 	Tile* neighbors[8];
 
@@ -65,6 +69,9 @@ public:
 	sf::Sprite& getFlagSprite() {
 		return this->_flag;
 	}
+	sf::Sprite& getAdjacent() {
+		return this->num_neighbor;
+	}
 
 	void setPos(float x, float y) {
 		this->_tile.setPosition(x, y);
@@ -75,7 +82,10 @@ public:
 			this->_flag.setPosition(x, y);
 	}
 	void setMat() {
-		this->_tile.setTexture(this->hidden);
+		if (!this->isVisible)
+			this->_tile.setTexture(this->hidden);
+		else if (this->isVisible)
+			this->_tile.setTexture(this->hidden);
 
 		if (this->hasMine)
 			this->_mine.setTexture(this->mine);
@@ -84,6 +94,10 @@ public:
 		else if (!this->isFlagged)
 			this->_flag.setTexture(this->hidden);
 	}
+	void setNum(int num) {
+		this->num.loadFromFile("files/images/number_" + std::to_string(num) + ".png");
+		this->num_neighbor.setTexture(this->num);
+	}
 };
 
 class Board {
@@ -91,10 +105,7 @@ private:
 	int width;
 	int height;
 	int numMines;
-	std::vector<Tile> Tiles;
-	sf::Texture hidden;
-	sf::Texture visible;
-	sf::Texture mine;
+	std::vector<std::vector<Tile>> Tiles;
 
 public:
 	Board(int width, int height, int numMines) {
@@ -102,58 +113,238 @@ public:
 		this->height = height;
 		this->numMines = numMines;
 
-		this->Tiles.resize(this->width * this->height);
-
-		this->hidden.loadFromFile("files/images/tile_hidden.png");
-		this->visible.loadFromFile("files/images/tile_revealed.png");
-		this->mine.loadFromFile("files/images/mine.png");
+		this->Tiles.resize(this->width);
+		for (int i = 0; i < this->width; ++i) {
+			this->Tiles[i].resize(this->height);
+		}
 	}
 
 	void GenerateBoard() {
-		
-		std::vector<int> indices(this->Tiles.size());
+		std::vector<Tile> _tiles;
+		_tiles.resize(this->width * this->height);
+		std::vector<int> indices(_tiles.size());
 		std::iota(indices.begin(), indices.end(), 0);
 		std::shuffle(indices.begin(), indices.end(), std::mt19937(std::random_device()()));
 
 		// Create an empty board.
 		for (auto i = 0; i < this->Tiles.size(); ++i) {
 			Tile tile;
-			this->Tiles.at(i) = tile;
+			_tiles.at(i) = tile;
 		}
+
+		
 
 		int total_mines = 0; // Place mines until reaching number of mines.
 		// Randomly assign mines.
-		for (auto i = 0; i < this->Tiles.size(); ++i) {
-			if (this->numMines == total_mines) // Total mines has been reached.
-				break;
+		for (auto i = 0; i < _tiles.size(); ++i) {
+			if (this->numMines == total_mines) 
+				break; // Total mines has been reached.
+				
 
-			std::cout << "Visited index: " << indices[i] << std::endl;
+			std::cout << "Visited index: " << total_mines << std::endl;
 
-			if (!this->Tiles.at(indices[i]).getMine()) {
-				this->Tiles.at(indices[i]).setMine(true);
+			if (!_tiles.at(indices[i]).getMine()) {
+				_tiles.at(indices[i]).setMine(true);
 				total_mines++;
 			}
 
+		}
+
+		// Copying 1D vector to 2D vector.
+		int k = 0;
+		for (int i = 0; i < this->width; ++i) {
+			for (int j = 0; j < this->height; ++j) {
+				this->Tiles.at(i).at(j) = _tiles[k];
+				++k;
+			}
+		}
+
+		// Determine adjacent visitors.
+
+		for (int i = 0; i < this->width; ++i) {
+			for (int j = 0; j < this->height; ++j) {
+				if (!this->Tiles[i][j].getMine()) {
+
+					// Origin case.
+					if (i == 0 && j == 0) {
+						if (this->Tiles[i + 1][j].getMine()) {
+							std::cout << "Mine to the right of " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(1);
+						}
+						if (this->Tiles[i][j + 1].getMine()) {
+							std::cout << "Mine below " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(3);
+						}
+						if (this->Tiles[i + 1][j + 1].getMine()) {
+							std::cout << "Mine bottom right diagonal " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(5);
+						}
+					}
+
+					// Top right corner case.
+					else if (i == width - 1 && j == 0) {
+						if (this->Tiles[i - 1][j].getMine()) {
+							std::cout << "Mine to the left of " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(2);
+						}
+						if (this->Tiles[i][j + 1].getMine()) {
+							std::cout << "Mine below " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(3);
+						}
+						if (this->Tiles[i - 1][j + 1].getMine()) {
+							std::cout << "Mine bottom left diagonal " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(8);
+						}
+
+					}
+
+					// Bottom left corner case.
+					else if (i == 0 && j == height - 1) {
+						if (this->Tiles[i + 1][j].getMine()) {
+							std::cout << "Mine to the right of " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(1);
+						}
+						if (this->Tiles[i][j - 1].getMine()) {
+							std::cout << "Mine above " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(4);
+						}
+						if (this->Tiles[i + 1][j - 1].getMine()) {
+							std::cout << "Mine top right diagonal " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(6);
+						}
+
+					}
+
+					// Bottom right corner case.
+
+					// Top edge. Don't check for above.
+					else if (j == 0 && i < this->width - 1 && i > 0) {
+						if (this->Tiles[i - 1][j].getMine()) {
+							std::cout << "Mine to the left of " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(2);
+						}
+						if (this->Tiles[i + 1][j].getMine()) {
+							std::cout << "Mine to the right of " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(1);
+						}
+						if (this->Tiles[i][j + 1].getMine()) {
+							std::cout << "Mine below " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(3);
+						}
+						if (this->Tiles[i + 1][j + 1].getMine()) {
+							std::cout << "Mine bottom right diagonal " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(5);
+						}
+					}
+
+					// Left edge. Don't check for left.
+					else if (i == 0 && j > 0 && j < this->height - 1) {
+						if (this->Tiles[i + 1][j].getMine()) {
+							std::cout << "Mine to the right of " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(1);
+						}
+						if (this->Tiles[i][j - 1].getMine()) {
+							std::cout << "Mine above " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(4);
+						}
+						if (this->Tiles[i][j + 1].getMine()) {
+							std::cout << "Mine below " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(3);
+						}
+						if (this->Tiles[i + 1][j - 1].getMine()) {
+							std::cout << "Mine top right diagonal " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(6);
+						}
+						if (this->Tiles[i + 1][j + 1].getMine()) {
+							std::cout << "Mine bottom right diagonal " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(5);
+						}
+					}
+
+					// Bottom edge. Don't check for below.
+					else if (j == this->height - 1 && i < this->width - 1) {
+						if (this->Tiles[i + 1][j].getMine()) {
+							std::cout << "Mine to the right of " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(1);
+						}
+						if (this->Tiles[i][j - 1].getMine()) {
+							std::cout << "Mine above " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(4);
+						}
+						if (this->Tiles[i + 1][j - 1].getMine()) {
+							std::cout << "Mine top right diagonal " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(6);
+						}
+						if (this->Tiles[i - 1][j].getMine()) {
+							std::cout << "Mine to the left of " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(2);
+						}
+						if (this->Tiles[i - 1][j - 1].getMine()) {
+							std::cout << "Mine top left diagonal " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(7);
+						}
+					}
+
+
+				}
+				
+				
+				
+
+				
+				
+				
+
+				
+
+
+				// Right edge. Don't check for right.
+				/*if (i == this->width - 1 && j < this->height - 1) {
+					if (!this->Tiles[i][j].getMine()) {
+						if (this->Tiles[i][j - 1].getMine()) {
+							std::cout << "Mine above " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(4);
+						}
+						if (this->Tiles[i][j + 1].getMine()) {
+							std::cout << "Mine below " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(3);
+						}
+						if (this->Tiles[i - 1][j - 1].getMine()) {
+							std::cout << "Mine top left diagonal " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(7);
+						}
+						if (this->Tiles[i - 1][j + 1].getMine()) {
+							std::cout << "Mine bottom left diagonal " << i << ", " << j << std::endl;
+							this->Tiles[i][j].setNum(8);
+						}
+					}
+				}*/
+			}
 		}
 
 		std::cout << "Generated a complete minesweeper board!" << std::endl;
 	}
 
 	void Draw(sf::RenderWindow& win, int choice) {
-		int k = 0;
+
 		for (int i = 0; i < this->width; ++i) {
 			for (int j = 0; j < this->height; ++j) {
-				this->Tiles[k].setPos(i * 32, j * 32);
-				this->Tiles[k].setMat();
-				win.draw(this->Tiles[k].getTile());
+				this->Tiles[i][j].setPos(i * 32, j * 32);
+				this->Tiles[i][j].setMat();
+				win.draw(this->Tiles[i][j].getTile());
 
-				if (choice == 1)
-					win.draw(this->Tiles[k].getMineSprite());
+				this->Tiles[i][j].getAdjacent().setPosition(i * 32, j * 32);
+				win.draw(this->Tiles[i][j].getAdjacent());
+
+				if (choice == 1 && this->Tiles[i][j].getVisible())
+					win.draw(this->Tiles[i][j].getMineSprite());
 
 				else if (choice == 2)
-					win.draw(this->Tiles[k].getFlagSprite());
+					win.draw(this->Tiles[i][j].getFlagSprite());
 
-				++k;
+				else if (choice == 3)
+					win.draw(this->Tiles[i][j].getMineSprite());
+
 			}
 		}
 	}
@@ -164,7 +355,7 @@ public:
 	int getHeight() const {
 		return this->height;
 	}
-	std::vector<Tile>& getTiles(){
+	std::vector<std::vector<Tile>>& getTiles() {
 		return this->Tiles;
 	}
 };
