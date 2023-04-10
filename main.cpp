@@ -37,6 +37,7 @@ void GameWindow(std::string name) {
 	// <<<<<< GENERATING A BOARD >>>>>>> //
 
 	Board Minesweeper(width, height, std::stoi(mine_cnt));
+	std::cout << "Total mines: " << mine_cnt << std::endl;
 	Minesweeper.GenerateBoard();
 
 	sf::Texture face;
@@ -83,7 +84,6 @@ void GameWindow(std::string name) {
 	sf::Sprite _LB;
 	_LB.setTexture(LB);
 	_LB.setPosition((width * 32) - 176, 32 * (height + 0.5f));
-
 
 	sf::Texture digits_txt;
 	if (!digits_txt.loadFromFile("files/images/digits.png")) {
@@ -176,17 +176,7 @@ void GameWindow(std::string name) {
 			window.draw(rect);
 		}
 
-		//std::cout << "Time: " << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count() << std::endl;
-
 		Minesweeper.Draw(window, choice);
-
-		// Drawing tiles.
-		//for (int i = 0; i < width; ++i) { // Rows
-		//	for (int j = 0; j < height; ++j) { // Columns
-		//		_tile.setPosition(i * 32, j * 32);
-		//		window.draw(_tile);
-		//	}
-		//}
 
 		sf::Event event;
 		while (window.pollEvent(event)) {
@@ -214,11 +204,12 @@ void GameWindow(std::string name) {
 					Minesweeper.GenerateBoard();
 					start = std::chrono::high_resolution_clock::now();
 					mines = std::stoi(mine_cnt);
+					_face.setTexture(face);
 				}
 
 				if (mousepos.x >= _debug.getPosition().x && mousepos.x <= _debug.getPosition().x + 64 && mousepos.y >= _debug.getPosition().y && mousepos.y <= _debug.getPosition().y + 64) {
 					if (!isDebug) {
-						choice = 1;
+						choice = 3;
 						isDebug = true;
 					}
 					else {
@@ -229,12 +220,13 @@ void GameWindow(std::string name) {
 				}
 
 				// Checking which tile was clicked.
-				int k = 0;
 				for (int i = 0; i < width; ++i) {
 					for (int j = 0; j < height; ++j) {
 						if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
-							if (Minesweeper.getTiles()[k].getMine()) { // Lost.
+							Minesweeper.getTiles()[i][j].setVisible(true);
+							if (Minesweeper.getTiles()[i][j].getMine()) { // Lost.
 								std::cout << "You died!" << std::endl;
+								choice = 1;
 								_face.setTexture(sad);
 							}
 							else {
@@ -242,30 +234,27 @@ void GameWindow(std::string name) {
 							}
 							
 						}
-						++k;
 					}
 				}
 			}
 
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
-				int k = 0;
 				for (int i = 0; i < width; ++i) {
 					for (int j = 0; j < height; ++j) {
 						if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
-							if (!Minesweeper.getTiles()[k].getFlag())
+							if (!Minesweeper.getTiles()[i][j].getFlag())
 							{
-								Minesweeper.getTiles()[k].setFlagged(true);
+								Minesweeper.getTiles()[i][j].setFlagged(true);
 								std::cout << "Flag placed!" << std::endl;
 								mines--;
 								choice = 2;
 							}
 							else {
-								Minesweeper.getTiles()[k].setFlagged(false);
+								Minesweeper.getTiles()[i][j].setFlagged(false);
 								std::cout << "Flag removed!" << std::endl;
 								mines++;
 							}
 						}
-						++k;
 					}
 				}
 			}
