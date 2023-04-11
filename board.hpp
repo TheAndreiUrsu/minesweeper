@@ -10,6 +10,7 @@ private:
 	bool hasMine;
 	bool isFlagged;
 	bool isVisible;
+	bool hasNum;
 
 	sf::Sprite _tile;
 	sf::Sprite _mine;
@@ -31,10 +32,13 @@ public:
 		this->hasMine = false;
 		this->isFlagged = false;
 		this->isVisible = false;
+		this->hasNum = false;
+
 		this->hidden.loadFromFile("files/images/tile_hidden.png");
 		this->visible.loadFromFile("files/images/tile_revealed.png");
 		this->mine.loadFromFile("files/images/mine.png");
 		this->flag.loadFromFile("files/images/flag.png");
+		
 		this->neighbors.resize(8);
 		for (int i = 0; i < this->neighbors.size(); ++i) {
 			this->neighbors.at(i) = nullptr;
@@ -70,6 +74,9 @@ public:
 	}
 	bool getVisible() {
 		return this->isVisible;
+	}
+	bool getNum() {
+		return this->hasNum;
 	}
 
 	std::vector<Tile*> getNeighbor() {
@@ -122,6 +129,7 @@ public:
 	void setNum(int num) {
 		this->num.loadFromFile("files/images/number_" + std::to_string(num) + ".png");
 		this->num_neighbor.setTexture(this->num);
+		this->hasNum = true;
 	}
 };
 
@@ -185,7 +193,6 @@ public:
 
 		for (int i = 0; i < this->width; ++i) {
 			for (int j = 0; j < this->height; ++j) {
-
 				if (i == 0 && j == 0) { // Origin neighbors.
 					this->Tiles[i][j].addNeighbor(&this->Tiles[i + 1][j]);
 					this->Tiles[i][j].addNeighbor(&this->Tiles[i][j + 1]);
@@ -482,10 +489,22 @@ public:
 				this->Tiles[i][j].setPos(i * 32, j * 32);
 				this->Tiles[i][j].setMat();
 				win.draw(this->Tiles[i][j].getTile());
+					
+				this->Tiles[i][j].getAdjacent().setPosition(i * 32, j * 32);\
+				
+				if (!this->Tiles[i][j].getMine() && this->Tiles[i][j].getVisible()) {
+					if(this->Tiles[i][j].getNum())
+						win.draw(this->Tiles[i][j].getAdjacent());
+					else {
+						for (int k = 0; k < 8; ++k) {
+							std::cout << "Neighboring tiles " << k << ": " << this->Tiles[i][j].getNeighbor()[k] << std::endl;
+						}
+						std::cout << "Revealing adjacent tiles." << std::endl;
+					}
+				}
+				
 
-				this->Tiles[i][j].getAdjacent().setPosition(i * 32, j * 32);
-
-				if (choice == 1 && this->Tiles[i][j].getVisible())
+				if (choice == 1)
 					win.draw(this->Tiles[i][j].getMineSprite());
 
 				else if (choice == 2) {
@@ -495,20 +514,9 @@ public:
 				else if (choice == 3) {
 					win.draw(this->Tiles[i][j].getMineSprite());
 					win.draw(this->Tiles[i][j].getAdjacent());
-					
 				}
-					
-				else if (choice == 4 && this->Tiles[i][j].getVisible()) {
-					for (int k = 0; k < 8; ++k) {
-						if (this->Tiles[i][j].getNeighbor()[k] != nullptr && !this->Tiles[i][j].getNeighbor()[k]->getMine()) {
-							this->Tiles[i][j].getNeighbor()[k]->setVisible(true);
-							this->Tiles[i][j].getNeighbor()[k]->setMat();
-							win.draw(this->Tiles[i][j].getNeighbor()[k]->getTile());
-							win.draw(this->Tiles[i][j].getNeighbor()[k]->getAdjacent());
-						}
-					}
-					//win.draw(this->Tiles[i][j].getAdjacent());
-				} 
+
+				win.draw(this->Tiles[i][j].getFlagSprite());
 
 			}
 		}

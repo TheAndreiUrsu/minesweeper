@@ -82,6 +82,7 @@ void GameWindow(std::string name) {
 
 	bool isPaused = false;
 	bool gameOver = false;
+	bool leaderBoard = false;
 
 	sf::Texture LB;
 	if (!LB.loadFromFile("files/images/leaderboard.png")) {
@@ -187,9 +188,7 @@ void GameWindow(std::string name) {
 		}
 
 		Minesweeper.Draw(window, choice);
-
 		
-
 		sf::Event event;
 		while (window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed)
@@ -199,6 +198,7 @@ void GameWindow(std::string name) {
 				if (mousepos.x >= _play.getPosition().x && mousepos.x <= _play.getPosition().x + 64 && mousepos.y >= _play.getPosition().y && mousepos.y <= 64 + _play.getPosition().y) { // Checking if pause/play button was pressed.
 					if (!isPaused) {
 						_play.setTexture(play);
+						Minesweeper.Draw(window,5);
 						isPaused = true;
 					}
 					else {
@@ -209,7 +209,16 @@ void GameWindow(std::string name) {
 				}
 
 				if (mousepos.x >= _LB.getPosition().x && mousepos.x <= _LB.getPosition().x + 64 && mousepos.y >= _LB.getPosition().y && mousepos.y <= 64 + _LB.getPosition().y) { // Checking if leaderboard button was pressed.
-					LeaderboardWindow(width * 16, (height * 16) + 50);
+					if (!leaderBoard) {
+						Minesweeper.Draw(window, 5);
+						LeaderboardWindow(width * 16, (height * 16) + 50);
+						leaderBoard = true;
+					}
+					else {
+						Minesweeper.Draw(window, 6);
+						leaderBoard = false;
+					}
+					
 				}
 
 				if (mousepos.x >= _face.getPosition().x && mousepos.x <= _face.getPosition().x + 64 && mousepos.y >= _face.getPosition().y && mousepos.y <= _face.getPosition().y + 64) {
@@ -236,15 +245,16 @@ void GameWindow(std::string name) {
 				for (int i = 0; i < width; ++i) {
 					for (int j = 0; j < height; ++j) {
 						if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
-							Minesweeper.getTiles()[i][j].setVisible(true);
+							
 							if (Minesweeper.getTiles()[i][j].getMine()) { // Lost.
 								std::cout << "You died!" << std::endl;
 								choice = 1;
 								_face.setTexture(sad);
 							}
 							else {
+								Minesweeper.getTiles()[i][j].setVisible(true);
 								choice = 4;
-								std::cout << "You're safe!" << std::endl;
+								std::cout << "Clicked on " << i << ", " << j << "! A safe tile." << std::endl;
 							}
 							
 						}
@@ -259,13 +269,13 @@ void GameWindow(std::string name) {
 							if (!Minesweeper.getTiles()[i][j].getFlag())
 							{
 								Minesweeper.getTiles()[i][j].setFlagged(true);
-								std::cout << "Flag placed!" << std::endl;
+								std::cout << "Flag placed at " << i << ", " << j << "!" << std::endl;
 								mines--;
 								choice = 2;
 							}
 							else {
 								Minesweeper.getTiles()[i][j].setFlagged(false);
-								std::cout << "Flag removed!" << std::endl;
+								std::cout << "Flag removed at " << i << ", " << j << "!" << std::endl;
 								mines++;
 							}
 						}
@@ -383,7 +393,6 @@ void MenuWindow() {
 
 	while (window.isOpen())
 	{
-
 		input.setPosition(width / 2.0f, height / 2.0f - 45);
 
 		input_bounds = input.getLocalBounds();
