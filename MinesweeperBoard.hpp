@@ -310,9 +310,7 @@ public:
 					win.draw(this->Tiles[i][j].getMineSprite());
 
 				else if (choice == 3) {
-					win.draw(this->Tiles[i][j].getFlagSprite());
 					win.draw(this->Tiles[i][j].getMineSprite());
-					win.draw(this->Tiles[i][j].getAdjacent());
 				}
 
 				else if (choice == 5) {
@@ -329,20 +327,19 @@ public:
 					if (this->Tiles[i][j].getNum() && this->Tiles[i][j].getVisible()) {
 						win.draw(this->Tiles[i][j].getAdjacent());
 					}
-					else if (this->Tiles[i][j].getNum_int() == 0 && this->Tiles[i][j].getVisible()) { // If the current tile has no mines and is visible.
+					else if (this->Tiles[i][j].getNum_int() == 0 && this->Tiles[i][j].getVisible() && !this->Tiles[i][j].getFlag()) { // If the current tile has no mines and is visible.
 						std::vector<Tile*> neighbor = this->Tiles[i][j].getNeighbor();
 						for (int k = 0; k < 8; ++k) { // Then reveal the neighbors.
 							if (neighbor[k] != nullptr) {
-								neighbor[k]->setVisible(true);
-								win.draw(neighbor[k]->getTile());
-								win.draw(neighbor[k]->getAdjacent());
+								if (!neighbor[k]->getFlag()) {
+									neighbor[k]->setVisible(true);
+									win.draw(neighbor[k]->getTile());
+									win.draw(neighbor[k]->getAdjacent());
+								}								
 							}
 						}
 					}
 				}
-
-				
-
 			}
 		}
 	}
