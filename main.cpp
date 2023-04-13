@@ -1,11 +1,20 @@
 #include <fstream>
-#include "board.hpp"
+#include "MinesweeperBoard.hpp"
 #include <chrono>
 
 void MenuWindow();
 void GameWindow(std::string name);
 void LeaderboardWindow(int width, int height);
 
+void writeLeaderboard(std::string time, std::string name);
+
+int stringToSeconds(std::string time);
+std::string secondsToString(int time);
+
+struct Score {
+	std::string name;
+	int time; // Stored in seconds.
+};
 
 int main()
 {
@@ -15,6 +24,9 @@ int main()
 }
 
 void GameWindow(std::string name) {
+
+	sf::Image icon;
+	icon.loadFromFile("files/images/mine.png");
 
 	std::cout << "Name: " << name << std::endl;
 
@@ -30,6 +42,8 @@ void GameWindow(std::string name) {
 
 	// Game window.
 	sf::RenderWindow window(sf::VideoMode(std::stoi(_width) * 32, std::stoi(_height) * 32 + 100), "Minesweeper", sf::Style::Close);
+
+	window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
 	float width = std::stoi(_width);
 	float height = std::stoi(_height);
@@ -133,12 +147,14 @@ void GameWindow(std::string name) {
 	int mines = std::stoi(mine_cnt);
 
 	int minute, second;
+	std::string score;
 	int choice = 0;
 
 	while (window.isOpen()) {
-		if (Minesweeper.checkBoard()) {
+		if (Minesweeper.checkBoard() && !gameOver) {
 			_face.setTexture(happy);
 			gameOver = true;
+			writeLeaderboard(score, name);
 		}
 		sf::Vector2i mousepos = sf::Mouse::getPosition(window);
 
@@ -148,9 +164,15 @@ void GameWindow(std::string name) {
 		window.draw(_play);
 		window.draw(_LB);
 
-		if (!isPaused) {
+		if (!isPaused && !gameOver) {
 			minute = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::high_resolution_clock::now() - start).count();
 			second = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count();
+			score = std::to_string(minute % 99 / 10 % 10) + std::to_string(minute % 99 % 10) + ":" + std::to_string(second % 60 / 10 % 10) + std::to_string(second % 60 % 10);
+		}
+		else {
+			auto el_min = minute;
+			auto el_sec = second;
+			std::cout << std::to_string(el_min) << ":" << (el_sec < 10 ? "0" : "") << std::to_string(el_sec % 60) << std::endl;
 		}
 
 		// Drawing timer.
@@ -195,13 +217,15 @@ void GameWindow(std::string name) {
 				window.close();
 
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) { 
-				if (mousepos.x >= _play.getPosition().x && mousepos.x <= _play.getPosition().x + 64 && mousepos.y >= _play.getPosition().y && mousepos.y <= 64 + _play.getPosition().y) { // Checking if pause/play button was pressed.
+				if (mousepos.x >= _play.getPosition().x && mousepos.x <= _play.getPosition().x + 64 && mousepos.y >= _play.getPosition().y && mousepos.y <= 64 + _play.getPosition().y && !gameOver) { // Checking if pause/play button was pressed.
 					if (!isPaused) {
 						_play.setTexture(play);
-						Minesweeper.Draw(window,5);
+						Minesweeper.storePrev();
+						Minesweeper.Draw(window, 5);
 						isPaused = true;
 					}
 					else {
+						Minesweeper.revertBack();
 						_play.setTexture(pause);
 						start = start;
 						isPaused = false;
@@ -209,27 +233,32 @@ void GameWindow(std::string name) {
 				}
 
 				if (mousepos.x >= _LB.getPosition().x && mousepos.x <= _LB.getPosition().x + 64 && mousepos.y >= _LB.getPosition().y && mousepos.y <= 64 + _LB.getPosition().y) { // Checking if leaderboard button was pressed.
-					if (!leaderBoard) {
+					if (!leaderBoard && !isPaused) {
+						Minesweeper.storePrev();
 						Minesweeper.Draw(window, 5);
+						window.display();
 						LeaderboardWindow(width * 16, (height * 16) + 50);
 						leaderBoard = true;
 					}
-					else {
-						Minesweeper.Draw(window, 6);
+					else if (leaderBoard) {
+						Minesweeper.revertBack();
 						leaderBoard = false;
 					}
 					
 				}
 
-				if (mousepos.x >= _face.getPosition().x && mousepos.x <= _face.getPosition().x + 64 && mousepos.y >= _face.getPosition().y && mousepos.y <= _face.getPosition().y + 64) {
+				if (mousepos.x >= _face.getPosition().x && mousepos.x <= _face.getPosition().x + 64 && mousepos.y >= _face.getPosition().y && mousepos.y <= _face.getPosition().y + 64) { // Reset button.
 					Minesweeper.GenerateBoard();
 					Minesweeper.countNeighboringMines();
 					start = std::chrono::high_resolution_clock::now();
 					mines = std::stoi(mine_cnt);
 					_face.setTexture(face);
+					isPaused = false;
+					gameOver = false;
+					choice = 0;
 				}
 
-				if (mousepos.x >= _debug.getPosition().x && mousepos.x <= _debug.getPosition().x + 64 && mousepos.y >= _debug.getPosition().y && mousepos.y <= _debug.getPosition().y + 64) {
+				if (mousepos.x >= _debug.getPosition().x && mousepos.x <= _debug.getPosition().x + 64 && mousepos.y >= _debug.getPosition().y && mousepos.y <= _debug.getPosition().y + 64 && !isPaused && !gameOver) { // Debug button.
 					if (!isDebug) {
 						choice = 3;
 						isDebug = true;
@@ -241,42 +270,52 @@ void GameWindow(std::string name) {
 						
 				}
 
-				// Checking which tile was clicked.
-				for (int i = 0; i < width; ++i) {
-					for (int j = 0; j < height; ++j) {
-						if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
-							
-							if (Minesweeper.getTiles()[i][j].getMine()) { // Lost.
-								std::cout << "You died!" << std::endl;
-								choice = 1;
-								_face.setTexture(sad);
+				if (!isPaused) {
+					if (!gameOver) {
+						// Checking which tile was clicked.
+						for (int i = 0; i < width; ++i) {
+							for (int j = 0; j < height; ++j) {
+								if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
+
+									if (Minesweeper.getTiles()[i][j].getMine()) { // Lost.
+										std::cout << "You died!" << std::endl;
+										choice = 1;
+										_face.setTexture(sad);
+										gameOver = true;
+									}
+									else {
+										if (!Minesweeper.getTiles()[i][j].getFlag()) { // Can only click on tile if there is no flag.
+											Minesweeper.getTiles()[i][j].setVisible(true);
+											choice = 0;
+											std::cout << "Clicked on " << i << ", " << j << "! A safe tile." << std::endl;
+										}
+									}
+								}
 							}
-							else {
-								Minesweeper.getTiles()[i][j].setVisible(true);
-								choice = 4;
-								std::cout << "Clicked on " << i << ", " << j << "! A safe tile." << std::endl;
-							}
-							
 						}
 					}
 				}
 			}
 
-			if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
-				for (int i = 0; i < width; ++i) {
-					for (int j = 0; j < height; ++j) {
-						if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
-							if (!Minesweeper.getTiles()[i][j].getFlag())
-							{
-								Minesweeper.getTiles()[i][j].setFlagged(true);
-								std::cout << "Flag placed at " << i << ", " << j << "!" << std::endl;
-								mines--;
-								choice = 2;
-							}
-							else {
-								Minesweeper.getTiles()[i][j].setFlagged(false);
-								std::cout << "Flag removed at " << i << ", " << j << "!" << std::endl;
-								mines++;
+			if (sf::Mouse::isButtonPressed(sf::Mouse::Right) && !isPaused) {
+				if (!gameOver) {
+					for (int i = 0; i < width; ++i) {
+						for (int j = 0; j < height; ++j) {
+							if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
+								if (!Minesweeper.getTiles()[i][j].getFlag() && !Minesweeper.getTiles()[i][j].getVisible())
+								{
+									Minesweeper.getTiles()[i][j].setFlagged(true);
+									std::cout << "Flag placed at " << i << ", " << j << "!" << std::endl;
+									std::cout << "Visibility: " << Minesweeper.et
+									mines--;
+									choice = 0;
+								}
+								else if (Minesweeper.getTiles()[i][j].getFlag()) {
+									Minesweeper.getTiles()[i][j].setFlagged(false);
+									Minesweeper.getTiles()[i][j].setVisible(false);
+									std::cout << "Flag removed at " << i << ", " << j << "!" << std::endl;
+									mines++;
+								}
 							}
 						}
 					}
@@ -284,18 +323,51 @@ void GameWindow(std::string name) {
 			}
 		}
 		window.display();
-		
 	}
 
 }
 
-struct Score {
-	std::string name;
-	std::string time;
-};
+int stringToSeconds(std::string time) {
+
+	// Time in format of mm:ss.
+	//					[0][1][3][4]
+
+	std::cout << std::stoi(time.substr(0, 2)) * 60 + std::stoi(time.substr(3, 2)) << std::endl;
+
+	return (std::stoi(time.substr(0, 2)) * 60 + std::stoi(time.substr(3, 2)));
+}
+
+std::string secondsToString(int time) {
+	std::string minutes_1st = std::to_string(static_cast<int>((time / 60) / 10 % 10));
+	std::string minutes_2nd = std::to_string(static_cast<int>(time / 60) % 10);
+	std::string seconds_1st = std::to_string(time % 60 / 10);
+	std::string seconds_2nd = std::to_string(time % 60 % 10);
+
+	return minutes_1st + minutes_2nd + ":" + seconds_1st + seconds_2nd;
+}
+
+void writeLeaderboard(std::string time, std::string name) {
+	std::ofstream file("files/leaderboard.txt", std::ios::app);
+
+	char first = name.at(1);
+	first = std::toupper(first);
+	std::string newName = first + name.substr(2, name.length());
+
+	if (!file.is_open())
+		std::cout << "Could not open file!" << std::endl;
+
+	file << std::endl << time << "," << newName;
+	file.close();
+	std::cout << "Added to file." << std::endl;
+}
 
 void LeaderboardWindow(int width, int height) {
+	sf::Image icon;
+	icon.loadFromFile("files/images/mine.png");
+
 	sf::RenderWindow window(sf::VideoMode(width, height), "Minesweeper", sf::Style::Close);
+
+	window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
 	auto _width = window.getSize().x;
 	auto _height = window.getSize().y;
@@ -323,13 +395,21 @@ void LeaderboardWindow(int width, int height) {
 	while (getline(file, time, ',')) {
 		getline(file, name, '\n');
 
-		Score _new = { name,time };
+		Score _new = { name,stringToSeconds(time) };
 		scores.push_back(_new);
 	}
 
 	sf::Text score("", font, 18);
 	score.setStyle(sf::Text::Bold);
 	score.setFillColor(sf::Color::White);
+
+	// Sort the scores based on the time.
+	for (int i = 0; i < scores.size(); ++i) {
+		for (int j = 0; j < scores.size() - i - 1; ++j) {
+			if (scores[j].time > scores[j + 1].time)
+				std::swap(scores[j], scores[j + 1]);
+		}
+	}
 
 	while (window.isOpen()) {
 
@@ -342,7 +422,7 @@ void LeaderboardWindow(int width, int height) {
 		window.clear(sf::Color::Blue);
 		score.setOrigin(score.getLocalBounds().left + score.getLocalBounds().width / 2.0f, score.getLocalBounds().top + score.getLocalBounds().height / 2.0f);
 		for (int i = 0; i < 5; ++i) { // Display only top 5.
-			score.setString(std::to_string(i + 1) + "." + '\t' + scores[i].time + '\t' + scores[i].name + '\n');
+			score.setString(std::to_string(i + 1) + "." + '\t' + secondsToString(scores[i].time) + '\t' + scores[i].name + '\n');
 			score.setPosition(width / 2.0f, height / 2.0f - 60 + i * 30);
 			window.draw(score);
 		}
@@ -353,7 +433,12 @@ void LeaderboardWindow(int width, int height) {
 }
 
 void MenuWindow() {
+	sf::Image icon;
+	icon.loadFromFile("files/images/mine.png");
+
 	sf::RenderWindow window(sf::VideoMode(800, 600), "Minesweeper", sf::Style::Close);
+
+	window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
 	auto width = window.getSize().x;
 	auto height = window.getSize().y;
@@ -414,7 +499,7 @@ void MenuWindow() {
 					input.setString(in_str);
 				}
 
-				if (event.key.code == sf::Keyboard::Return) {
+				if (event.key.code == sf::Keyboard::Return && input.getString().getSize() > 1) {
 					std::string user = input.getString();
 					window.close();
 					GameWindow(user);
