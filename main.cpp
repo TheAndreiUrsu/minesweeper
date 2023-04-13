@@ -16,15 +16,13 @@ struct Score {
 	int time; // Stored in seconds.
 };
 
-int main()
-{
+int main(){
 	MenuWindow();
 
 	return 0;
 }
 
 void GameWindow(std::string name) {
-
 	sf::Image icon;
 	icon.loadFromFile("files/images/mine.png");
 
@@ -45,8 +43,8 @@ void GameWindow(std::string name) {
 
 	window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
-	float width = std::stoi(_width);
-	float height = std::stoi(_height);
+	auto width = std::stoi(_width);
+	auto height = std::stoi(_height);
 
 	// <<<<<< GENERATING A BOARD >>>>>>> //
 
@@ -113,7 +111,7 @@ void GameWindow(std::string name) {
 	sf::Sprite digits_spr;
 	digits_spr.setTexture(digits_txt);
 	digits_spr.setPosition(33, 32 * (height + 0.5f) + 16);
-	
+
 	sf::Texture flag;
 	if (!flag.loadFromFile("files/images/flag.png")) {
 		std::cout << "Could not open file!" << std::endl;
@@ -127,7 +125,7 @@ void GameWindow(std::string name) {
 	minutes.setTexture(digits_txt);
 	sf::Sprite seconds;
 	seconds.setTexture(digits_txt);
-	
+
 	// Flag counter.
 	sf::Sprite digit1_mines;
 	sf::Sprite digit2_mines;
@@ -142,7 +140,10 @@ void GameWindow(std::string name) {
 	rect.setFillColor(sf::Color::White);
 	rect.setPosition(12, 32 * (height + 0.5f) + 16);
 
+	auto zero = std::chrono::high_resolution_clock::duration::zero();
 	auto start = std::chrono::high_resolution_clock::now();
+	auto _time = zero;
+	auto current_time = zero;
 
 	int mines = std::stoi(mine_cnt);
 
@@ -164,16 +165,26 @@ void GameWindow(std::string name) {
 		window.draw(_play);
 		window.draw(_LB);
 
+		
 		if (!isPaused && !gameOver) {
-			minute = std::chrono::duration_cast<std::chrono::minutes>(std::chrono::high_resolution_clock::now() - start).count();
-			second = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::high_resolution_clock::now() - start).count();
-			score = std::to_string(minute % 99 / 10 % 10) + std::to_string(minute % 99 % 10) + ":" + std::to_string(second % 60 / 10 % 10) + std::to_string(second % 60 % 10);
+			if (_time > zero) {
+				current_time = std::chrono::high_resolution_clock::now() - std::chrono::time_point<std::chrono::high_resolution_clock>(_time);
+			}
+			else {
+				current_time = std::chrono::high_resolution_clock::now() - start;
+			}
+			
+			minute = std::chrono::duration_cast<std::chrono::minutes>(current_time).count();
+			second = std::chrono::duration_cast<std::chrono::seconds>(current_time).count();
+			std::cout << "Unpaused time: " << std::chrono::duration_cast<std::chrono::minutes>(current_time).count() << ":" << std::chrono::duration_cast<std::chrono::seconds>(current_time).count() << std::endl;
 		}
-		else {
-			auto el_min = minute;
-			auto el_sec = second;
-			std::cout << std::to_string(el_min) << ":" << (el_sec < 10 ? "0" : "") << std::to_string(el_sec % 60) << std::endl;
+		else if (isPaused) {
+			// Store the current time in a temp variable.
+			_time = current_time;
+			std::cout << "Paused time: " << std::chrono::duration_cast<std::chrono::minutes>(_time).count() << ":" << std::chrono::duration_cast<std::chrono::seconds>(_time).count() << std::endl;
 		}
+		score = std::to_string(minute % 99 / 10 % 10) + std::to_string(minute % 99 % 10) + ":" + std::to_string(second % 60 / 10 % 10) + std::to_string(second % 60 % 10);
+		//std::cout << "Elapsed Time: " << score << std::endl;
 
 		// Drawing timer.
 		minutes.setTextureRect(sf::IntRect(((minute % 99) / 10) % 10 * 21, 0, 21, 32));
@@ -210,13 +221,13 @@ void GameWindow(std::string name) {
 		}
 
 		Minesweeper.Draw(window, choice);
-		
+
 		sf::Event event;
 		while (window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed)
 				window.close();
 
-			if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) { 
+			if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
 				if (mousepos.x >= _play.getPosition().x && mousepos.x <= _play.getPosition().x + 64 && mousepos.y >= _play.getPosition().y && mousepos.y <= 64 + _play.getPosition().y && !gameOver) { // Checking if pause/play button was pressed.
 					if (!isPaused) {
 						_play.setTexture(play);
@@ -227,7 +238,7 @@ void GameWindow(std::string name) {
 					else {
 						Minesweeper.revertBack();
 						_play.setTexture(pause);
-						start = start;
+						start = std::chrono::high_resolution_clock::now();
 						isPaused = false;
 					}
 				}
@@ -238,13 +249,14 @@ void GameWindow(std::string name) {
 						Minesweeper.Draw(window, 5);
 						window.display();
 						LeaderboardWindow(width * 16, (height * 16) + 50);
+						isPaused = true;
 						leaderBoard = true;
 					}
 					else if (leaderBoard) {
 						Minesweeper.revertBack();
+						isPaused = false;
 						leaderBoard = false;
 					}
-					
 				}
 
 				if (mousepos.x >= _face.getPosition().x && mousepos.x <= _face.getPosition().x + 64 && mousepos.y >= _face.getPosition().y && mousepos.y <= _face.getPosition().y + 64) { // Reset button.
@@ -253,6 +265,7 @@ void GameWindow(std::string name) {
 					start = std::chrono::high_resolution_clock::now();
 					mines = std::stoi(mine_cnt);
 					_face.setTexture(face);
+					_play.setTexture(pause);
 					isPaused = false;
 					gameOver = false;
 					choice = 0;
@@ -267,7 +280,6 @@ void GameWindow(std::string name) {
 						choice = 0;
 						isDebug = false;
 					}
-						
 				}
 
 				if (!isPaused) {
@@ -276,7 +288,6 @@ void GameWindow(std::string name) {
 						for (int i = 0; i < width; ++i) {
 							for (int j = 0; j < height; ++j) {
 								if (mousepos.x >= i * 32 && mousepos.x <= i * 32 + 32 && mousepos.y >= j * 32 && mousepos.y <= j * 32 + 32) {
-
 									if (Minesweeper.getTiles()[i][j].getMine()) { // Lost.
 										std::cout << "You died!" << std::endl;
 										choice = 1;
@@ -306,13 +317,15 @@ void GameWindow(std::string name) {
 								{
 									Minesweeper.getTiles()[i][j].setFlagged(true);
 									std::cout << "Flag placed at " << i << ", " << j << "!" << std::endl;
-									std::cout << "Visibility: " << Minesweeper.et
+
 									mines--;
 									choice = 0;
 								}
 								else if (Minesweeper.getTiles()[i][j].getFlag()) {
 									Minesweeper.getTiles()[i][j].setFlagged(false);
-									Minesweeper.getTiles()[i][j].setVisible(false);
+									choice = 6;
+									std::cout << "Is the texture hidden? " << (&Minesweeper.getTiles()[i][j].getHidden() == Minesweeper.getTiles()[i][j].getTile().getTexture()) << std::endl;
+									std::cout << "Visibility: " << Minesweeper.getTiles()[i][j].getVisible() << std::endl;
 									std::cout << "Flag removed at " << i << ", " << j << "!" << std::endl;
 									mines++;
 								}
@@ -324,11 +337,9 @@ void GameWindow(std::string name) {
 		}
 		window.display();
 	}
-
 }
 
 int stringToSeconds(std::string time) {
-
 	// Time in format of mm:ss.
 	//					[0][1][3][4]
 
@@ -351,10 +362,62 @@ void writeLeaderboard(std::string time, std::string name) {
 
 	char first = name.at(1);
 	first = std::toupper(first);
-	std::string newName = first + name.substr(2, name.length());
 
 	if (!file.is_open())
 		std::cout << "Could not open file!" << std::endl;
+
+	// First compare to the other times if the inputted time beats everyone else.
+	std::ifstream _file("files/leaderboard.txt", std::ios::in);
+	if (!_file.is_open())
+		std::cout << "Could not open file!" << std::endl;
+
+	std::string _time, _name;
+	std::vector<Score> scores;
+	std::string newName;
+
+	while (getline(_file, _time, ',')) {
+		getline(_file, _name, '\n');
+
+		Score _new = { _name, stringToSeconds(_time) };
+		scores.push_back(_new);
+	}
+	Score other = { name, stringToSeconds(time) };
+	scores.push_back(other);
+
+	// Sort the scores based on the time.
+	for (unsigned int i = 0; i < scores.size(); ++i) {
+		for (unsigned int j = 0; j < scores.size() - i - 1; ++j) {
+			if (scores[j].time > scores[j + 1].time)
+				std::swap(scores[j], scores[j + 1]);
+		}
+	}
+	if (scores[0].name == name && scores[0].time == stringToSeconds(time)) {
+		if (scores[1].name.at(scores[1].name.length() - 1) == '*') { // Remove the previous top.
+			scores[1].name = scores[1].name.substr(0, scores[1].name.length() - 1);
+			std::cout << "Old score: " << scores[1].name << std::endl;
+			
+			// Overwrite the file.
+			std::ofstream file_("files/leaderboard.txt", std::ios::out);
+			if (!file_.is_open()) {
+				std::cout << "Could not open file!" << std::endl;
+			}
+			for (unsigned int i = 1; i < scores.size(); ++i) {
+				if (i == scores.size() - 1) { // Don't add a new line when it's the last line.
+					file_ << secondsToString(scores[i].time) << ',' << scores[i].name;
+				}
+				else {
+					file_ << secondsToString(scores[i].time) << ',' << scores[i].name << std::endl;
+				}
+				std::cout << "Time: " << secondsToString(scores[i].time) << "," << "Name: " << scores[i].name << std::endl;
+			}
+			file_.close();
+			
+		}
+		newName = first + name.substr(2, name.length()) + '*'; // Add asterik denoting new top score.
+	}
+	else {
+		newName = first + name.substr(2, name.length()); // Don't add asterik.
+	}
 
 	file << std::endl << time << "," << newName;
 	file.close();
@@ -404,15 +467,14 @@ void LeaderboardWindow(int width, int height) {
 	score.setFillColor(sf::Color::White);
 
 	// Sort the scores based on the time.
-	for (int i = 0; i < scores.size(); ++i) {
-		for (int j = 0; j < scores.size() - i - 1; ++j) {
+	for (unsigned int i = 0; i < scores.size(); ++i) {
+		for (unsigned int j = 0; j < scores.size() - i - 1; ++j) {
 			if (scores[j].time > scores[j + 1].time)
 				std::swap(scores[j], scores[j + 1]);
 		}
 	}
 
 	while (window.isOpen()) {
-
 		sf::Event event;
 		while (window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed)
@@ -475,7 +537,6 @@ void MenuWindow() {
 	sf::FloatRect input_bounds = input.getLocalBounds();
 	input.setOrigin(input_bounds.left + input_bounds.width / 2.0f, input_bounds.top + input_bounds.height / 2.0f);
 
-
 	while (window.isOpen())
 	{
 		input.setPosition(width / 2.0f, height / 2.0f - 45);
@@ -506,7 +567,6 @@ void MenuWindow() {
 				}
 			}
 
-
 			if (event.type == sf::Event::Closed)
 				window.close();
 		}
@@ -517,5 +577,4 @@ void MenuWindow() {
 		window.draw(input);
 		window.display();
 	}
-
 } // Menu Window
