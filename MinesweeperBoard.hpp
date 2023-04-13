@@ -41,7 +41,7 @@ public:
 		this->flag.loadFromFile("files/images/flag.png");
 		
 		this->neighbors.resize(8);
-		for (int i = 0; i < this->neighbors.size(); ++i) {
+		for (unsigned int i = 0; i < this->neighbors.size(); ++i) {
 			this->neighbors.at(i) = nullptr;
 		}
 
@@ -101,6 +101,10 @@ public:
 	}
 	sf::Sprite& getAdjacent() {
 		return this->num_neighbor;
+	}
+
+	sf::Texture& getHidden() {
+		return this->hidden;
 	}
 
 	void setPos(float x, float y) {
@@ -175,7 +179,7 @@ public:
 		_tiles.resize(this->width * this->height);
 
 		// Create an empty board.
-		for (auto i = 0; i < this->Tiles.size(); ++i) {
+		for (unsigned int i = 0; i < this->Tiles.size(); ++i) {
 			Tile tile;
 			_tiles.at(i) = tile;
 		}
@@ -306,20 +310,29 @@ public:
 
 				this->Tiles[i][j].getAdjacent().setPosition(i * 32, j * 32);
 
-				if (choice == 1)
+				if (choice == 1) // You lost!
 					win.draw(this->Tiles[i][j].getMineSprite());
 
-				else if (choice == 3) {
+				else if (choice == 3) { // Debugging.
 					win.draw(this->Tiles[i][j].getMineSprite());
 				}
 
-				else if (choice == 5) {
+				else if (choice == 5) { // Pausing.
 					this->Tiles[i][j].setVisible(true);
 					this->Tiles[i][j].setFlagged(false);
 					this->Tiles[i][j].setNum(0);
 				}
+				else if (choice == 6) { // Flagging/Unflagging.
+					if (this->Tiles[i][j].getFlag()) {
+						this->Tiles[i][j].setVisible(false);
+						win.draw(this->Tiles[i][j].getFlagSprite());
+					}
+					else if (this->Tiles[i][j].getVisible()) {
+						win.draw(this->Tiles[i][j].getAdjacent());
+					}
+				}
 
-				else {
+				else { // When left clicking.
 					if (this->Tiles[i][j].getFlag()) {
 						win.draw(this->Tiles[i][j].getFlagSprite());
 					}
@@ -327,7 +340,7 @@ public:
 					if (this->Tiles[i][j].getNum() && this->Tiles[i][j].getVisible()) {
 						win.draw(this->Tiles[i][j].getAdjacent());
 					}
-					else if (this->Tiles[i][j].getNum_int() == 0 && this->Tiles[i][j].getVisible() && !this->Tiles[i][j].getFlag()) { // If the current tile has no mines and is visible.
+					else if (this->Tiles[i][j].getNum_int() == 0 && this->Tiles[i][j].getVisible() && !this->Tiles[i][j].getFlag()) { // If the current tile has no mines, is visible, and has no adjacent mines. Reveals all the adjacent tiles.
 						std::vector<Tile*> neighbor = this->Tiles[i][j].getNeighbor();
 						for (int k = 0; k < 8; ++k) { // Then reveal the neighbors.
 							if (neighbor[k] != nullptr) {
@@ -335,7 +348,7 @@ public:
 									neighbor[k]->setVisible(true);
 									win.draw(neighbor[k]->getTile());
 									win.draw(neighbor[k]->getAdjacent());
-								}								
+								}
 							}
 						}
 					}
