@@ -1,6 +1,6 @@
 #include <fstream>
 #include "MinesweeperBoard.hpp"
-#include <chrono>
+#include <SFML\System\Clock.hpp>
 
 void MenuWindow();
 void GameWindow(std::string name);
@@ -18,11 +18,11 @@ struct Score {
 
 int main(){
 	MenuWindow();
-
 	return 0;
 }
 
 void GameWindow(std::string name) {
+
 	sf::Image icon;
 	icon.loadFromFile("files/images/mine.png");
 
@@ -140,16 +140,22 @@ void GameWindow(std::string name) {
 	rect.setFillColor(sf::Color::White);
 	rect.setPosition(12, 32 * (height + 0.5f) + 16);
 
-	auto zero = std::chrono::high_resolution_clock::duration::zero();
-	auto start = std::chrono::high_resolution_clock::now();
-	auto _time = zero;
-	auto current_time = zero;
-
 	int mines = std::stoi(mine_cnt);
 
 	int minute, second;
 	std::string score;
 	int choice = 0;
+
+	/*auto start = stopwatch::now();
+	auto paused = stopwatch::duration::zero;
+	auto paused_start = stopwatch::now();*/
+
+	sf::Clock sw;
+	sf::Clock pause_sw;
+	sw.restart();
+	auto paused_time = sf::Time::Zero;
+	auto pause_start = sf::Time::Zero;
+	auto paused = sf::Time::Zero;
 
 	while (window.isOpen()) {
 		if (Minesweeper.checkBoard() && !gameOver) {
@@ -165,26 +171,18 @@ void GameWindow(std::string name) {
 		window.draw(_play);
 		window.draw(_LB);
 
-		
 		if (!isPaused && !gameOver) {
-			if (_time > zero) {
-				current_time = std::chrono::high_resolution_clock::now() - std::chrono::time_point<std::chrono::high_resolution_clock>(_time);
-			}
-			else {
-				current_time = std::chrono::high_resolution_clock::now() - start;
-			}
-			
-			minute = std::chrono::duration_cast<std::chrono::minutes>(current_time).count();
-			second = std::chrono::duration_cast<std::chrono::seconds>(current_time).count();
-			std::cout << "Unpaused time: " << std::chrono::duration_cast<std::chrono::minutes>(current_time).count() << ":" << std::chrono::duration_cast<std::chrono::seconds>(current_time).count() << std::endl;
+			auto elapsed = sw.getElapsedTime() - paused_time;
+			std::cout << "Elapsed Time: " << static_cast<int>(elapsed.asSeconds()) / 60 / 10 % 10 << static_cast<int>(elapsed.asSeconds()) / 60 % 10 << ":" << static_cast<int>(elapsed.asSeconds()) % 60 / 10 % 10 << static_cast<int>(elapsed.asSeconds()) % 60 % 10 << std::endl;
+			minute = elapsed.asSeconds() / 60;
+			second = static_cast<int>(elapsed.asSeconds()) % 60;
 		}
 		else if (isPaused) {
-			// Store the current time in a temp variable.
-			_time = current_time;
-			std::cout << "Paused time: " << std::chrono::duration_cast<std::chrono::minutes>(_time).count() << ":" << std::chrono::duration_cast<std::chrono::seconds>(_time).count() << std::endl;
+			paused_time = pause_sw.getElapsedTime();
+			std::cout << "Paused Time: " << static_cast<int>(paused_time.asSeconds()) / 60 / 10 % 10 << static_cast<int>(paused_time.asSeconds()) / 60 % 10 << ":" << static_cast<int>(paused_time.asSeconds()) % 60 / 10 % 10 << static_cast<int>(paused_time.asSeconds()) % 60 % 10 << std::endl;
 		}
+
 		score = std::to_string(minute % 99 / 10 % 10) + std::to_string(minute % 99 % 10) + ":" + std::to_string(second % 60 / 10 % 10) + std::to_string(second % 60 % 10);
-		//std::cout << "Elapsed Time: " << score << std::endl;
 
 		// Drawing timer.
 		minutes.setTextureRect(sf::IntRect(((minute % 99) / 10) % 10 * 21, 0, 21, 32));
@@ -233,12 +231,12 @@ void GameWindow(std::string name) {
 						_play.setTexture(play);
 						Minesweeper.storePrev();
 						Minesweeper.Draw(window, 5);
+						pause_sw.restart();
 						isPaused = true;
 					}
 					else {
 						Minesweeper.revertBack();
 						_play.setTexture(pause);
-						start = std::chrono::high_resolution_clock::now();
 						isPaused = false;
 					}
 				}
@@ -262,7 +260,7 @@ void GameWindow(std::string name) {
 				if (mousepos.x >= _face.getPosition().x && mousepos.x <= _face.getPosition().x + 64 && mousepos.y >= _face.getPosition().y && mousepos.y <= _face.getPosition().y + 64) { // Reset button.
 					Minesweeper.GenerateBoard();
 					Minesweeper.countNeighboringMines();
-					start = std::chrono::high_resolution_clock::now();
+					sw.restart();
 					mines = std::stoi(mine_cnt);
 					_face.setTexture(face);
 					_play.setTexture(pause);
@@ -343,7 +341,7 @@ int stringToSeconds(std::string time) {
 	// Time in format of mm:ss.
 	//					[0][1][3][4]
 
-	std::cout << std::stoi(time.substr(0, 2)) * 60 + std::stoi(time.substr(3, 2)) << std::endl;
+	//std::cout << std::stoi(time.substr(0, 2)) * 60 + std::stoi(time.substr(3, 2)) << std::endl;
 
 	return (std::stoi(time.substr(0, 2)) * 60 + std::stoi(time.substr(3, 2)));
 }
@@ -360,7 +358,7 @@ std::string secondsToString(int time) {
 void writeLeaderboard(std::string time, std::string name) {
 	std::ofstream file("files/leaderboard.txt", std::ios::app);
 
-	char first = name.at(1);
+	char first = name.at(0);
 	first = std::toupper(first);
 
 	if (!file.is_open())
@@ -394,14 +392,13 @@ void writeLeaderboard(std::string time, std::string name) {
 	if (scores[0].name == name && scores[0].time == stringToSeconds(time)) {
 		if (scores[1].name.at(scores[1].name.length() - 1) == '*') { // Remove the previous top.
 			scores[1].name = scores[1].name.substr(0, scores[1].name.length() - 1);
-			std::cout << "Old score: " << scores[1].name << std::endl;
 			
 			// Overwrite the file.
 			std::ofstream file_("files/leaderboard.txt", std::ios::out);
 			if (!file_.is_open()) {
 				std::cout << "Could not open file!" << std::endl;
 			}
-			for (unsigned int i = 1; i < scores.size(); ++i) {
+			for (unsigned int i = 1; i < 5; ++i) {
 				if (i == scores.size() - 1) { // Don't add a new line when it's the last line.
 					file_ << secondsToString(scores[i].time) << ',' << scores[i].name;
 				}
@@ -425,6 +422,7 @@ void writeLeaderboard(std::string time, std::string name) {
 }
 
 void LeaderboardWindow(int width, int height) {
+	sf::sleep(sf::seconds(2.0f));
 	sf::Image icon;
 	icon.loadFromFile("files/images/mine.png");
 
@@ -549,19 +547,22 @@ void MenuWindow() {
 		{
 			if (event.type == sf::Event::TextEntered) {
 				if (std::isalpha(event.text.unicode) && input.getString().getSize() < 10) {
-					input.setString(input.getString() + static_cast<char>(std::tolower(event.text.unicode)));
+					if (!input.getString().isEmpty() && input.getString()[input.getString().getSize() - 1] == '|') {
+						input.setString(input.getString().substring(0, input.getString().getSize() - 1));
+					}
+					input.setString(input.getString() + static_cast<char>(std::tolower(event.text.unicode)) + "|");
 				}
 			}
 
 			if (event.type == sf::Event::KeyPressed) {
-				if (event.key.code == sf::Keyboard::Backspace && input.getString().getSize() > 1 && input.getString() != "|") {
+				if (event.key.code == sf::Keyboard::Backspace && input.getString().getSize() > 0 && input.getString() != "|") {
 					std::string in_str = input.getString();
-					in_str.erase(in_str.length() - 1, 1);
+					in_str.erase(in_str.length() - 2, 1);
 					input.setString(in_str);
 				}
 
-				if (event.key.code == sf::Keyboard::Return && input.getString().getSize() > 1) {
-					std::string user = input.getString();
+				if (event.key.code == sf::Keyboard::Return && input.getString().getSize() > 0) {
+					std::string user = input.getString().substring(0,input.getString().getSize()-1);
 					window.close();
 					GameWindow(user);
 				}
