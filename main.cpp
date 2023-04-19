@@ -1,6 +1,10 @@
 #include <fstream>
 #include "MinesweeperBoard.hpp"
+#include "Score.hpp"
+#include "Stopwatch.hpp"
 #include <SFML\System\Clock.hpp>
+#include <iostream>
+#include <vector>
 
 void MenuWindow();
 void GameWindow(std::string name);
@@ -10,11 +14,6 @@ void writeLeaderboard(std::string time, std::string name);
 
 int stringToSeconds(std::string time);
 std::string secondsToString(int time);
-
-struct Score {
-	std::string name;
-	int time; // Stored in seconds.
-};
 
 int main(){
 	MenuWindow();
@@ -146,16 +145,15 @@ void GameWindow(std::string name) {
 	std::string score;
 	int choice = 0;
 
-	/*auto start = stopwatch::now();
-	auto paused = stopwatch::duration::zero;
-	auto paused_start = stopwatch::now();*/
-
-	sf::Clock sw;
+	/*sf::Clock sw;
 	sf::Clock pause_sw;
 	sw.restart();
 	auto paused_time = sf::Time::Zero;
-	auto pause_start = sf::Time::Zero;
 	auto paused = sf::Time::Zero;
+	auto elapsed = sf::Time::Zero;
+	auto total_paused_time = sf::Time::Zero;*/
+	Stopwatch SW;
+	SW.Start();
 
 	while (window.isOpen()) {
 		if (Minesweeper.checkBoard() && !gameOver) {
@@ -172,14 +170,8 @@ void GameWindow(std::string name) {
 		window.draw(_LB);
 
 		if (!isPaused && !gameOver) {
-			auto elapsed = sw.getElapsedTime() - paused_time;
-			std::cout << "Elapsed Time: " << static_cast<int>(elapsed.asSeconds()) / 60 / 10 % 10 << static_cast<int>(elapsed.asSeconds()) / 60 % 10 << ":" << static_cast<int>(elapsed.asSeconds()) % 60 / 10 % 10 << static_cast<int>(elapsed.asSeconds()) % 60 % 10 << std::endl;
-			minute = elapsed.asSeconds() / 60;
-			second = static_cast<int>(elapsed.asSeconds()) % 60;
-		}
-		else if (isPaused) {
-			paused_time = pause_sw.getElapsedTime();
-			std::cout << "Paused Time: " << static_cast<int>(paused_time.asSeconds()) / 60 / 10 % 10 << static_cast<int>(paused_time.asSeconds()) / 60 % 10 << ":" << static_cast<int>(paused_time.asSeconds()) % 60 / 10 % 10 << static_cast<int>(paused_time.asSeconds()) % 60 % 10 << std::endl;
+			minute = SW.getTime() / 60;
+			second = static_cast<int>(SW.getTime()) % 60;
 		}
 
 		score = std::to_string(minute % 99 / 10 % 10) + std::to_string(minute % 99 % 10) + ":" + std::to_string(second % 60 / 10 % 10) + std::to_string(second % 60 % 10);
@@ -231,7 +223,7 @@ void GameWindow(std::string name) {
 						_play.setTexture(play);
 						Minesweeper.storePrev();
 						Minesweeper.Draw(window, 5);
-						pause_sw.restart();
+						
 						isPaused = true;
 					}
 					else {
@@ -246,9 +238,9 @@ void GameWindow(std::string name) {
 						Minesweeper.storePrev();
 						Minesweeper.Draw(window, 5);
 						window.display();
-						LeaderboardWindow(width * 16, (height * 16) + 50);
 						isPaused = true;
 						leaderBoard = true;
+						LeaderboardWindow(width * 16, (height * 16) + 50);
 					}
 					else if (leaderBoard) {
 						Minesweeper.revertBack();
@@ -260,7 +252,7 @@ void GameWindow(std::string name) {
 				if (mousepos.x >= _face.getPosition().x && mousepos.x <= _face.getPosition().x + 64 && mousepos.y >= _face.getPosition().y && mousepos.y <= _face.getPosition().y + 64) { // Reset button.
 					Minesweeper.GenerateBoard();
 					Minesweeper.countNeighboringMines();
-					sw.restart();
+					
 					mines = std::stoi(mine_cnt);
 					_face.setTexture(face);
 					_play.setTexture(pause);
@@ -422,7 +414,6 @@ void writeLeaderboard(std::string time, std::string name) {
 }
 
 void LeaderboardWindow(int width, int height) {
-	sf::sleep(sf::seconds(2.0f));
 	sf::Image icon;
 	icon.loadFromFile("files/images/mine.png");
 
