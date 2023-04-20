@@ -1,4 +1,6 @@
 #include "MinesweeperBoard.hpp"
+#include <vector>
+#include <iostream>
 
 // Tiles // 
 
@@ -202,6 +204,19 @@ void Board::countNeighboringMines() {
 	}
 }
 
+void Board::RevealAll(sf::RenderWindow& win) {
+	for (int i = 0; i < this->width; ++i) {
+		for (int j = 0; j < this->height; ++j) {
+			this->Tiles[i][j].setVisible(true);
+			this->Tiles[i][j].setFlagged(false);
+			this->Tiles[i][j].setNum(0);
+			this->Tiles[i][j].setPos(i * 32, j * 32);
+			this->Tiles[i][j].setMat();
+			win.draw(this->Tiles[i][j].getTile());
+		}
+	}
+}
+
 void Board::Draw(sf::RenderWindow& win, int choice) {
 	for (int i = 0; i < this->width; ++i) {
 		for (int j = 0; j < this->height; ++j) {
@@ -211,17 +226,21 @@ void Board::Draw(sf::RenderWindow& win, int choice) {
 
 			this->Tiles[i][j].getAdjacent().setPosition(i * 32, j * 32);
 
-			if (choice == 1) // You lost!
+			if (choice == 1) { // You lost!
+				if(this->Tiles[i][j].getFlag())
+					win.draw(this->Tiles[i][j].getFlagSprite());
 				win.draw(this->Tiles[i][j].getMineSprite());
+				if(this->Tiles[i][j].getVisible())
+					win.draw(this->Tiles[i][j].getAdjacent());
+			} 
+				
 
 			else if (choice == 3) { // Debugging.
 				win.draw(this->Tiles[i][j].getMineSprite());
 			}
 
 			else if (choice == 5) { // Pausing.
-				this->Tiles[i][j].setVisible(true);
-				this->Tiles[i][j].setFlagged(false);
-				this->Tiles[i][j].setNum(0);
+				this->RevealAll(win);
 			}
 			else if (choice == 6) { // Flagging/Unflagging.
 				if (this->Tiles[i][j].getFlag()) {

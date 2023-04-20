@@ -2,7 +2,7 @@
 #include <vector>
 #include <random>
 #include <iostream>
-#include <SFML\Graphics.hpp>
+#include <SFML/Graphics.hpp>
 
 class Tile {
 private:
@@ -109,6 +109,8 @@ public:
 	void GenerateBoard();
 
 	void countNeighboringMines();
+
+	void RevealAll(sf::RenderWindow& win);
 
 	void Draw(sf::RenderWindow& win, int choice);
 	
