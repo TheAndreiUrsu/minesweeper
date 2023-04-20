@@ -1,14 +1,13 @@
 #include <fstream>
+#include <iostream>
+#include <vector>
 #include "MinesweeperBoard.hpp"
 #include "Score.hpp"
 #include "Stopwatch.hpp"
-#include <SFML\System\Clock.hpp>
-#include <iostream>
-#include <vector>
 
 void MenuWindow();
 void GameWindow(std::string name);
-void LeaderboardWindow(int width, int height);
+void LeaderboardWindow(int width, int height, bool gameOver, std::string _name, int _time);
 
 void writeLeaderboard(std::string time, std::string name);
 
@@ -37,8 +36,12 @@ void GameWindow(std::string name) {
 	getline(file, _height);
 	getline(file, mine_cnt);
 
+	file.close();
+
 	// Game window.
 	sf::RenderWindow window(sf::VideoMode(std::stoi(_width) * 32, std::stoi(_height) * 32 + 100), "Minesweeper", sf::Style::Close);
+
+	window.setFramerateLimit(120);
 
 	window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
@@ -145,13 +148,6 @@ void GameWindow(std::string name) {
 	std::string score;
 	int choice = 0;
 
-	/*sf::Clock sw;
-	sf::Clock pause_sw;
-	sw.restart();
-	auto paused_time = sf::Time::Zero;
-	auto paused = sf::Time::Zero;
-	auto elapsed = sf::Time::Zero;
-	auto total_paused_time = sf::Time::Zero;*/
 	Stopwatch SW;
 	SW.Start();
 
@@ -160,6 +156,24 @@ void GameWindow(std::string name) {
 			_face.setTexture(happy);
 			gameOver = true;
 			writeLeaderboard(score, name);
+
+			// Draw the tiles first.
+			Minesweeper.Draw(window, 0);
+
+			// Set the digits to 0 because opening another window interrupts the main window.
+			digit1_mines.setTextureRect(sf::IntRect((0 / 100) % 10 * 21, 0, 21, 32));
+			digit1_mines.setPosition(33, 32 * (height + 0.5f) + 16);
+			window.draw(digit1_mines);
+			digit2_mines.setTextureRect(sf::IntRect((0 / 10) % 10 * 21, 0, 21, 32));
+			digit2_mines.setPosition(33 + 21, 32 * (height + 0.5f) + 16);
+			window.draw(digit2_mines);
+			digit3_mines.setTextureRect(sf::IntRect((0 % 10) * 21, 0, 21, 32));
+			digit3_mines.setPosition(33 + 21 * 2, 32 * (height + 0.5f) + 16);
+			window.draw(digit3_mines);
+
+			window.display();
+
+			LeaderboardWindow(width * 16, (height * 16) + 50, gameOver, name, stringToSeconds(score));
 		}
 		sf::Vector2i mousepos = sf::Mouse::getPosition(window);
 
@@ -169,7 +183,14 @@ void GameWindow(std::string name) {
 		window.draw(_play);
 		window.draw(_LB);
 
-		if (!isPaused && !gameOver) {
+		if (leaderBoard) {
+			Minesweeper.revertBack();
+			SW.Start();
+			isPaused = false;
+			leaderBoard = false;
+		}
+
+		else if (!isPaused && !gameOver) {
 			minute = SW.getTime() / 60;
 			second = static_cast<int>(SW.getTime()) % 60;
 		}
@@ -223,12 +244,13 @@ void GameWindow(std::string name) {
 						_play.setTexture(play);
 						Minesweeper.storePrev();
 						Minesweeper.Draw(window, 5);
-						
+						SW.Pause();
 						isPaused = true;
 					}
 					else {
 						Minesweeper.revertBack();
 						_play.setTexture(pause);
+						SW.Start();
 						isPaused = false;
 					}
 				}
@@ -238,21 +260,20 @@ void GameWindow(std::string name) {
 						Minesweeper.storePrev();
 						Minesweeper.Draw(window, 5);
 						window.display();
+						SW.Pause();
 						isPaused = true;
 						leaderBoard = true;
-						LeaderboardWindow(width * 16, (height * 16) + 50);
-					}
-					else if (leaderBoard) {
-						Minesweeper.revertBack();
-						isPaused = false;
-						leaderBoard = false;
+						LeaderboardWindow(width * 16, (height * 16) + 50, gameOver, name, stringToSeconds(score));
 					}
 				}
 
 				if (mousepos.x >= _face.getPosition().x && mousepos.x <= _face.getPosition().x + 64 && mousepos.y >= _face.getPosition().y && mousepos.y <= _face.getPosition().y + 64) { // Reset button.
 					Minesweeper.GenerateBoard();
 					Minesweeper.countNeighboringMines();
-					
+
+					SW.Restart();
+					SW.Start();
+
 					mines = std::stoi(mine_cnt);
 					_face.setTexture(face);
 					_play.setTexture(pause);
@@ -348,76 +369,70 @@ std::string secondsToString(int time) {
 }
 
 void writeLeaderboard(std::string time, std::string name) {
-	std::ofstream file("files/leaderboard.txt", std::ios::app);
+	// Upper case the first letter.
+	name = std::string(1, std::toupper(name[0])) + name.substr(1);
 
-	char first = name.at(0);
-	first = std::toupper(first);
+	std::ifstream in_file("files/leaderboard.txt");
 
-	if (!file.is_open())
-		std::cout << "Could not open file!" << std::endl;
+	if (!in_file.is_open())
+		std::cout << "Couldn't open file." << std::endl;
 
-	// First compare to the other times if the inputted time beats everyone else.
-	std::ifstream _file("files/leaderboard.txt", std::ios::in);
-	if (!_file.is_open())
-		std::cout << "Could not open file!" << std::endl;
-
-	std::string _time, _name;
+	std::string _name, _time;
 	std::vector<Score> scores;
-	std::string newName;
 
-	while (getline(_file, _time, ',')) {
-		getline(_file, _name, '\n');
-
-		Score _new = { _name, stringToSeconds(_time) };
-		scores.push_back(_new);
+	while (getline(in_file, _time, ',')) {
+		getline(in_file, _name, '\n');
+		Score _score = { _name,stringToSeconds(_time) };
+		scores.push_back(_score);
 	}
-	Score other = { name, stringToSeconds(time) };
-	scores.push_back(other);
+	in_file.close();
 
-	// Sort the scores based on the time.
-	for (unsigned int i = 0; i < scores.size(); ++i) {
-		for (unsigned int j = 0; j < scores.size() - i - 1; ++j) {
-			if (scores[j].time > scores[j + 1].time)
-				std::swap(scores[j], scores[j + 1]);
+	std::cout << "Finished opening file." << std::endl;
+
+	// Begin overwriting.
+
+	// Add the new score to the leaderboard.
+	Score _score = { name,stringToSeconds(time) };
+	scores.push_back(_score);
+
+	// Sort the leaderboard based on time.
+	std::sort(scores.begin(), scores.end(), [=](const Score& og, const Score& other) { return og.time < other.time; }); // Lambda function, can only access the value, not modify it.
+	
+	// Remove the last entry.
+	if (scores.size() >= 6) {
+		scores.erase(scores.begin() + scores.size() - 1);
+	}
+
+	for (int i = 0; i < scores.size(); ++i) {
+		std::cout << i+1 << ": " << scores[i].time << "," << scores[i].name << std::endl;
+	}
+
+	in_file.close();
+	std::cout << "Finished organizing." << std::endl;
+
+	// Open the file and begin overwriting.
+	std::ofstream out_file("files/leaderboard.txt");
+
+	if (!out_file)
+		std::cout << "Couldn't open file." << std::endl;
+
+	for (int i = 0; i < scores.size(); ++i) {
+		if (i == scores.size() - 1) {
+			out_file << secondsToString(scores[i].time) << "," << scores[i].name;
+		}
+		else {
+			out_file << secondsToString(scores[i].time) << "," << scores[i].name << '\n';
 		}
 	}
-	if (scores[0].name == name && scores[0].time == stringToSeconds(time)) {
-		if (scores[1].name.at(scores[1].name.length() - 1) == '*') { // Remove the previous top.
-			scores[1].name = scores[1].name.substr(0, scores[1].name.length() - 1);
-			
-			// Overwrite the file.
-			std::ofstream file_("files/leaderboard.txt", std::ios::out);
-			if (!file_.is_open()) {
-				std::cout << "Could not open file!" << std::endl;
-			}
-			for (unsigned int i = 1; i < 5; ++i) {
-				if (i == scores.size() - 1) { // Don't add a new line when it's the last line.
-					file_ << secondsToString(scores[i].time) << ',' << scores[i].name;
-				}
-				else {
-					file_ << secondsToString(scores[i].time) << ',' << scores[i].name << std::endl;
-				}
-				std::cout << "Time: " << secondsToString(scores[i].time) << "," << "Name: " << scores[i].name << std::endl;
-			}
-			file_.close();
-			
-		}
-		newName = first + name.substr(2, name.length()) + '*'; // Add asterik denoting new top score.
-	}
-	else {
-		newName = first + name.substr(2, name.length()); // Don't add asterik.
-	}
-
-	file << std::endl << time << "," << newName;
-	file.close();
-	std::cout << "Added to file." << std::endl;
 }
 
-void LeaderboardWindow(int width, int height) {
+void LeaderboardWindow(int width, int height, bool gameOver, std::string _name, int _time) {
 	sf::Image icon;
 	icon.loadFromFile("files/images/mine.png");
 
 	sf::RenderWindow window(sf::VideoMode(width, height), "Minesweeper", sf::Style::Close);
+
+	window.setFramerateLimit(60);
 
 	window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
@@ -455,13 +470,7 @@ void LeaderboardWindow(int width, int height) {
 	score.setStyle(sf::Text::Bold);
 	score.setFillColor(sf::Color::White);
 
-	// Sort the scores based on the time.
-	for (unsigned int i = 0; i < scores.size(); ++i) {
-		for (unsigned int j = 0; j < scores.size() - i - 1; ++j) {
-			if (scores[j].time > scores[j + 1].time)
-				std::swap(scores[j], scores[j + 1]);
-		}
-	}
+	_name = std::string(1, std::toupper(_name[0])) + _name.substr(1);
 
 	while (window.isOpen()) {
 		sf::Event event;
@@ -472,12 +481,35 @@ void LeaderboardWindow(int width, int height) {
 
 		window.clear(sf::Color::Blue);
 		score.setOrigin(score.getLocalBounds().left + score.getLocalBounds().width / 2.0f, score.getLocalBounds().top + score.getLocalBounds().height / 2.0f);
-		for (int i = 0; i < 5; ++i) { // Display only top 5.
-			score.setString(std::to_string(i + 1) + "." + '\t' + secondsToString(scores[i].time) + '\t' + scores[i].name + '\n');
-			score.setPosition(width / 2.0f, height / 2.0f - 60 + i * 30);
-			window.draw(score);
+		
+		// Compare the first to the input.
+		if (gameOver) { // Check if the game won.
+			if (scores[0].name == _name && scores[0].time == _time) { // Check if the written time and name match.
+				score.setString("1.\t" + secondsToString(scores[0].time) + '\t' + scores[0].name + "*" + '\n'); // Add * displaying it was recent.
+				score.setPosition(width / 2.0f, height / 2.0f - 60);
+				window.draw(score);
+				
+				for (int i = 1; i < scores.size(); ++i) {
+					score.setString(std::to_string(i + 1) + "." + '\t' + secondsToString(scores[i].time) + '\t' + scores[i].name + '\n');
+					score.setPosition(width / 2.0f, height / 2.0f - 60 + i * 30);
+					window.draw(score);
+				}
+			}
+			else {
+				for (int i = 0; i < scores.size(); ++i) {
+					score.setString(std::to_string(i + 1) + "." + '\t' + secondsToString(scores[i].time) + '\t' + scores[i].name + '\n');
+					score.setPosition(width / 2.0f, height / 2.0f - 60 + i * 30);
+					window.draw(score);
+				}
+			}
 		}
-
+		else {
+			for (int i = 0; i < 5; ++i) { // Display only top 5.
+				score.setString(std::to_string(i + 1) + "." + '\t' + secondsToString(scores[i].time) + '\t' + scores[i].name + '\n');
+				score.setPosition(width / 2.0f, height / 2.0f - 60 + i * 30);
+				window.draw(score);
+			}
+		}
 		window.draw(Title);
 		window.display();
 	}
@@ -488,6 +520,8 @@ void MenuWindow() {
 	icon.loadFromFile("files/images/mine.png");
 
 	sf::RenderWindow window(sf::VideoMode(800, 600), "Minesweeper", sf::Style::Close);
+
+	window.setFramerateLimit(60);
 
 	window.setIcon(icon.getSize().x, icon.getSize().y, icon.getPixelsPtr());
 
