@@ -1,6 +1,8 @@
+// Utilized from https://en.sfml-dev.org/forums/index.php?topic=11989.0
+
 #pragma once
 #include <iostream>
-#include <SFML\System\Clock.hpp>
+#include <SFML/System/Clock.hpp>
 
 class Stopwatch {
 private:
@@ -16,13 +18,13 @@ public:
 	}
 
 	void Start() {
-		if (this->paused) {
+		if (this->paused) { // If it's paused, restart the clock.
 			this->sw.restart();
 		}
 		this->paused = false;
 	}
 	
-	void Restart() {
+	void Restart() { // Restarts the clock to original settings.
 		this->sw.restart();
 		this->run_time = 0;
 		this->paused = false;
